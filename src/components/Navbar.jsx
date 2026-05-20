@@ -57,6 +57,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-8">
             <NavLink to="/" end className={desktopLink}>Inicio</NavLink>
             <NavLink to="/catalogo" className={desktopLink}>Catálogo</NavLink>
+            <NavLink to="/faq" className={desktopLink}>FAQ</NavLink>
             <button
               onClick={() => openCart(true)}
               className="relative flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white hover:text-mekra-orange transition-colors duration-150"
@@ -110,6 +111,9 @@ export default function Navbar() {
           </NavLink>
           <NavLink to="/catalogo" className={mobileLink} onClick={() => setMobileOpen(false)}>
             Catálogo
+          </NavLink>
+          <NavLink to="/faq" className={mobileLink} onClick={() => setMobileOpen(false)}>
+            FAQ
           </NavLink>
           <button
             onClick={() => { openCart(true); setMobileOpen(false) }}
