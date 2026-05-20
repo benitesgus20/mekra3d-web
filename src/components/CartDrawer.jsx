@@ -2,19 +2,38 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 
-function generarMensajeWA(items, total) {
+// Cupones válidos hardcodeados
+const CUPONES = {
+  'MEKRA10':  { porcentaje: 10 },
+  'MEKRA20':  { porcentaje: 20 },
+  'LABOON15': { porcentaje: 15 },
+  'PRIMERA':  { porcentaje:  5 },
+}
+
+function generarMensajeWA(items, total, cuponAplicado) {
   const lineas = items.map(item => {
     const subtotal = (item.precio * item.quantity).toFixed(2)
     const color = item.color ? ` (${item.color})` : ''
     return `• ${item.quantity}x ${item.nombre}${color} — S/${subtotal}`
   })
 
+  const descuento = cuponAplicado ? total * (cuponAplicado.porcentaje / 100) : 0
+  const totalFinal = total - descuento
+
+  const bloqueTotal = cuponAplicado
+    ? [
+        `Subtotal: S/${total.toFixed(2)}`,
+        `Cupón ${cuponAplicado.codigo} (${cuponAplicado.porcentaje}% OFF): -S/${descuento.toFixed(2)}`,
+        `Total: S/${totalFinal.toFixed(2)}`,
+      ]
+    : [`Total: S/${total.toFixed(2)}`]
+
   return [
     'Hola! Quiero hacer un pedido en Mekra3D 🧡',
     '',
     ...lineas,
     '',
-    `Total: S/${total.toFixed(2)}`,
+    ...bloqueTotal,
     '',
     'Quisiera coordinar la entrega en Trujillo.',
   ].join('\n')
@@ -24,13 +43,27 @@ export default function CartDrawer() {
   const { items, isOpen, setIsOpen, updateQuantity, removeItem, clearCart, total } = useCart()
   const [itemAEliminar, setItemAEliminar] = useState(null)
 
+  // Estado del cupón
+  const [codigoInput, setCodigoInput]   = useState('')
+  const [cuponAplicado, setCuponAplicado] = useState(null)   // { codigo, porcentaje } | null
+  const [estadoCupon, setEstadoCupon]   = useState('idle')   // 'idle' | 'valido' | 'invalido'
+
+  // Montos derivados del cupón
+  const descuento  = cuponAplicado ? total * (cuponAplicado.porcentaje / 100) : 0
+  const totalFinal = total - descuento
+
+  // Resetear cupón cuando el carrito se queda vacío
+  useEffect(() => {
+    if (items.length === 0) resetCupon()
+  }, [items.length])
+
   // Bloquear scroll del body mientras el drawer está abierto
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [isOpen])
 
-  // Cerrar drawer con Escape; si hay modal abierto, cerrarlo primero
+  // Cerrar con Escape; si hay modal abierto, cerrarlo primero
   useEffect(() => {
     const onKey = e => {
       if (e.key === 'Escape') {
@@ -43,13 +76,35 @@ export default function CartDrawer() {
   }, [setIsOpen, itemAEliminar])
 
   const waUrl = `https://wa.me/51922372823?text=${encodeURIComponent(
-    generarMensajeWA(items, total)
+    generarMensajeWA(items, total, cuponAplicado)
   )}`
 
   function confirmarEliminar() {
     if (!itemAEliminar) return
     removeItem(itemAEliminar.id, itemAEliminar.color)
     setItemAEliminar(null)
+  }
+
+  function aplicarCupon() {
+    const codigo = codigoInput.trim().toUpperCase()
+    if (CUPONES[codigo]) {
+      setCuponAplicado({ codigo, ...CUPONES[codigo] })
+      setEstadoCupon('valido')
+    } else {
+      setCuponAplicado(null)
+      setEstadoCupon('invalido')
+    }
+  }
+
+  function resetCupon() {
+    setCuponAplicado(null)
+    setCodigoInput('')
+    setEstadoCupon('idle')
+  }
+
+  function limpiarTodo() {
+    clearCart()
+    resetCupon()
   }
 
   return (
@@ -115,15 +170,51 @@ export default function CartDrawer() {
                 ))}
               </ul>
 
-              {/* Pie con total y botones */}
-              <div className="shrink-0 border-t border-mekra-black/10 px-5 pt-4 pb-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-mekra-black/50 uppercase tracking-wider">
-                    Total del pedido
-                  </span>
-                  <span className="text-2xl font-black text-mekra-orange">
-                    S/{total.toFixed(2)}
-                  </span>
+              {/* Pie con cupón + resumen + botones */}
+              <div className="shrink-0 border-t border-mekra-black/10 px-5 pt-4 pb-6 space-y-3">
+
+                {/* Campo de cupón */}
+                <CampoCupon
+                  codigoInput={codigoInput}
+                  onCodigoChange={v => { setCodigoInput(v); setEstadoCupon('idle') }}
+                  onAplicar={aplicarCupon}
+                  onQuitar={resetCupon}
+                  estadoCupon={estadoCupon}
+                  cuponAplicado={cuponAplicado}
+                />
+
+                {/* Resumen de montos */}
+                <div className="space-y-1.5">
+                  {cuponAplicado && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-mekra-black/50 uppercase tracking-wider">
+                        Subtotal
+                      </span>
+                      <span className="text-sm font-bold text-mekra-black/50">
+                        S/{total.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  {cuponAplicado && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-green-600 uppercase tracking-wider">
+                        Descuento ({cuponAplicado.porcentaje}%)
+                      </span>
+                      <span className="text-sm font-bold text-green-600">
+                        -S/{descuento.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-mekra-black/50 uppercase tracking-wider">
+                      Total del pedido
+                    </span>
+                    <span className="text-2xl font-black text-mekra-orange">
+                      S/{totalFinal.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
 
                 <a
@@ -137,7 +228,7 @@ export default function CartDrawer() {
                 </a>
 
                 <button
-                  onClick={clearCart}
+                  onClick={limpiarTodo}
                   className="flex items-center justify-center gap-1.5 w-full text-xs font-bold text-mekra-black/30 hover:text-mekra-black/60 transition-colors duration-150 uppercase tracking-widest"
                 >
                   <IconBasura />
@@ -149,6 +240,67 @@ export default function CartDrawer() {
         }
       </div>
     </>
+  )
+}
+
+// ── CAMPO DE CUPÓN ─────────────────────────────────────────────────
+
+function CampoCupon({ codigoInput, onCodigoChange, onAplicar, onQuitar, estadoCupon, cuponAplicado }) {
+  function handleKeyDown(e) {
+    if (e.key === 'Enter') onAplicar()
+  }
+
+  return (
+    <div>
+      {/* Input + botón */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={codigoInput}
+          onChange={e => onCodigoChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="¿Tienes un cupón?"
+          maxLength={20}
+          disabled={!!cuponAplicado}
+          className={`flex-1 px-3 py-2 text-xs font-bold border rounded transition-colors duration-150 focus:outline-none placeholder:text-mekra-black/30 bg-mekra-white text-mekra-black ${
+            estadoCupon === 'valido'   ? 'border-green-500 focus:border-green-500' :
+            estadoCupon === 'invalido' ? 'border-red-400 focus:border-red-400' :
+            'border-mekra-black/20 focus:border-mekra-orange'
+          } ${cuponAplicado ? 'opacity-60 cursor-not-allowed' : ''}`}
+        />
+        {cuponAplicado
+          ? (
+            <button
+              onClick={onQuitar}
+              className="px-3 py-2 border-2 border-mekra-orange text-mekra-orange text-[10px] font-black uppercase tracking-widest rounded transition-all duration-150 hover:bg-mekra-orange hover:text-white whitespace-nowrap"
+            >
+              Quitar
+            </button>
+          ) : (
+            <button
+              onClick={onAplicar}
+              className="px-3 py-2 bg-mekra-orange text-white text-[10px] font-black uppercase tracking-widest rounded transition-all duration-150 hover:brightness-110 active:scale-95 whitespace-nowrap"
+            >
+              Aplicar
+            </button>
+          )
+        }
+      </div>
+
+      {/* Mensajes de feedback */}
+      {estadoCupon === 'valido' && cuponAplicado && (
+        <p className="mt-1.5 text-[11px] font-bold text-green-600 flex items-center gap-1">
+          <span>✓</span>
+          Cupón aplicado — {cuponAplicado.porcentaje}% de descuento
+        </p>
+      )}
+      {estadoCupon === 'invalido' && (
+        <p className="mt-1.5 text-[11px] font-bold text-red-500 flex items-center gap-1">
+          <span>✕</span>
+          Cupón no válido o expirado
+        </p>
+      )}
+    </div>
   )
 }
 
