@@ -29,12 +29,13 @@ export default function ProductoDetalle() {
 function DetalleContenido({ producto }) {
   useDocumentTitle(producto.nombre)
   const { addItem, setIsOpen } = useCart()
-  const [colorSeleccionado, setColorSeleccionado] = useState(producto.colores[0])
+  const [colorSeleccionado, setColorSeleccionado] = useState(producto.colores[0] ?? null)
   const [cantidad, setCantidad] = useState(1)
   const [imagenActiva, setImagenActiva] = useState(0)
 
+  const descuentos = producto.descuentos_cantidad ?? []
   const { precioFinal, porcentaje: dtoActivo } = calcularPrecio(
-    producto.precio, cantidad, producto.descuentos_cantidad
+    producto.precio, cantidad, descuentos
   )
 
   const waMensaje = encodeURIComponent(
@@ -100,51 +101,82 @@ function DetalleContenido({ producto }) {
 
             {/* Precio con descuento dinámico */}
             <div className="flex items-end gap-3">
-              <span className="text-3xl font-black text-mekra-orange leading-none">
-                S/{precioFinal.toFixed(2)}
-              </span>
-              {dtoActivo > 0 && (
+              {producto.precio > 0 ? (
                 <>
-                  <span className="text-base text-mekra-black/30 line-through leading-none mb-0.5">
-                    S/{producto.precio.toFixed(2)}
+                  <span className="text-3xl font-black text-mekra-orange leading-none">
+                    S/{precioFinal.toFixed(2)}
                   </span>
-                  <span className="px-2 py-0.5 bg-mekra-orange text-white text-[10px] font-black uppercase rounded-full mb-0.5">
-                    -{dtoActivo}%
-                  </span>
+                  {dtoActivo > 0 && (
+                    <>
+                      <span className="text-base text-mekra-black/30 line-through leading-none mb-0.5">
+                        S/{producto.precio.toFixed(2)}
+                      </span>
+                      <span className="px-2 py-0.5 bg-mekra-orange text-white text-[10px] font-black uppercase rounded-full mb-0.5">
+                        -{dtoActivo}%
+                      </span>
+                    </>
+                  )}
                 </>
+              ) : (
+                <span className="text-2xl font-black text-mekra-black/40 leading-none">
+                  Consultar precio
+                </span>
               )}
             </div>
 
+            {/* Metadatos: estilo, peso, tiempo */}
+            {(producto.estilo || producto.peso || producto.tiempo_fabricacion) && (
+              <div className="flex flex-wrap gap-2">
+                {producto.estilo && (
+                  <span className="px-2.5 py-1 bg-mekra-black/5 text-mekra-black/60 text-[10px] font-black uppercase tracking-widest rounded">
+                    {producto.estilo}
+                  </span>
+                )}
+                {producto.peso && (
+                  <span className="px-2.5 py-1 bg-mekra-black/5 text-mekra-black/60 text-[10px] font-bold rounded">
+                    ⚖ {producto.peso}
+                  </span>
+                )}
+                {producto.tiempo_fabricacion && (
+                  <span className="px-2.5 py-1 bg-mekra-black/5 text-mekra-black/60 text-[10px] font-bold rounded">
+                    ⏱ {producto.tiempo_fabricacion}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Tabla de descuentos */}
-            {producto.descuentos_cantidad.length > 0 && (
+            {descuentos.length > 0 && (
               <TablaDescuentos
                 precioBase={producto.precio}
-                descuentos={producto.descuentos_cantidad}
+                descuentos={descuentos}
                 cantidadActual={cantidad}
               />
             )}
 
-            {/* Selector de color */}
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-mekra-black/60 mb-2">
-                Color: <span className="text-mekra-black">{colorSeleccionado}</span>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {producto.colores.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => setColorSeleccionado(color)}
-                    className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded border-2 transition-all duration-150 ${
-                      colorSeleccionado === color
-                        ? 'bg-mekra-orange border-mekra-orange text-white'
-                        : 'border-mekra-black/20 text-mekra-black hover:border-mekra-orange hover:text-mekra-orange'
-                    }`}
-                  >
-                    {color}
-                  </button>
-                ))}
+            {/* Selector de color — solo si hay colores disponibles */}
+            {producto.colores.length > 0 && (
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-mekra-black/60 mb-2">
+                  Color: <span className="text-mekra-black">{colorSeleccionado}</span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {producto.colores.map(color => (
+                    <button
+                      key={color}
+                      onClick={() => setColorSeleccionado(color)}
+                      className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded border-2 transition-all duration-150 ${
+                        colorSeleccionado === color
+                          ? 'bg-mekra-orange border-mekra-orange text-white'
+                          : 'border-mekra-black/20 text-mekra-black hover:border-mekra-orange hover:text-mekra-orange'
+                      }`}
+                    >
+                      {color}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Selector de cantidad */}
             <div>
@@ -179,12 +211,14 @@ function DetalleContenido({ producto }) {
 
             {/* Botones de acción */}
             <div className="flex flex-col gap-3 pt-2">
-              <button
-                onClick={handleAgregar}
-                className="w-full py-4 bg-mekra-orange text-white font-black uppercase tracking-widest text-sm rounded transition-all duration-200 hover:brightness-110 active:scale-[0.99]"
-              >
-                Agregar al carrito — S/{(precioFinal * cantidad).toFixed(2)}
-              </button>
+              {producto.precio > 0 && (
+                <button
+                  onClick={handleAgregar}
+                  className="w-full py-4 bg-mekra-orange text-white font-black uppercase tracking-widest text-sm rounded transition-all duration-200 hover:brightness-110 active:scale-[0.99]"
+                >
+                  Agregar al carrito — S/{(precioFinal * cantidad).toFixed(2)}
+                </button>
+              )}
 
               <a
                 href={`https://wa.me/51922372823?text=${waMensaje}`}
@@ -193,7 +227,7 @@ function DetalleContenido({ producto }) {
                 className="w-full py-4 border-2 border-mekra-orange text-mekra-orange font-black uppercase tracking-widest text-sm rounded transition-all duration-200 hover:bg-mekra-orange hover:text-white flex items-center justify-center gap-2"
               >
                 <IconWhatsApp />
-                Pedir personalizado
+                {producto.precio > 0 ? 'Pedir personalizado' : 'Consultar por WhatsApp'}
               </a>
             </div>
           </div>

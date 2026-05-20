@@ -4,7 +4,8 @@ import { productos, categorias } from '../data'
 import { useCart } from '../context/CartContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
-const MATERIALES = ['PLA+', 'ABS', 'PETG']
+const MATERIALES = ['PLA', 'PLA+']
+const ESTILOS    = ['Crochet', 'Clásico']
 
 const OPCIONES_ORDEN = [
   { value: 'nuevos',      label: 'Más nuevos'   },
@@ -22,6 +23,7 @@ export default function Catalogo() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [busqueda, setBusqueda]   = useState('')
   const [material, setMaterial]   = useState('todos')
+  const [estilo, setEstilo]       = useState('todos')
   const [orden, setOrden]         = useState('nuevos')
   const [categoria, setCategoria] = useState(() => searchParams.get('categoria') || 'todos')
 
@@ -55,11 +57,14 @@ export default function Catalogo() {
     if (material !== 'todos')
       lista = lista.filter(p => p.material === material)
 
+    if (estilo !== 'todos')
+      lista = lista.filter(p => p.estilo === estilo)
+
     if (orden === 'precio-asc')  return [...lista].sort((a, b) => a.precio - b.precio)
     if (orden === 'precio-desc') return [...lista].sort((a, b) => b.precio - a.precio)
     if (orden === 'popular')     return [...lista].sort((a, b) => (b.popular ? 1 : 0) - (a.popular ? 1 : 0))
     return lista
-  }, [busqueda, categoria, material, orden])
+  }, [busqueda, categoria, material, estilo, orden])
 
   return (
     <div className="min-h-screen bg-mekra-white">
@@ -67,6 +72,7 @@ export default function Catalogo() {
         busqueda={busqueda}    onBusqueda={setBusqueda}
         categoria={categoria}  onCategoria={cambiarCategoria}
         material={material}    onMaterial={setMaterial}
+        estilo={estilo}        onEstilo={setEstilo}
         orden={orden}          onOrden={setOrden}
         total={resultados.length}
       />
@@ -93,9 +99,10 @@ export default function Catalogo() {
 
 // ── BARRA DE FILTROS — sticky bajo el navbar ───────────────────────
 
-function BarraFiltros({ busqueda, onBusqueda, categoria, onCategoria, material, onMaterial, orden, onOrden, total }) {
-  const todasCats = [{ id: 'todos', nombre: 'Todos' }, ...categorias]
-  const todosMats = ['todos', ...MATERIALES]
+function BarraFiltros({ busqueda, onBusqueda, categoria, onCategoria, material, onMaterial, estilo, onEstilo, orden, onOrden, total }) {
+  const todasCats    = [{ id: 'todos', nombre: 'Todos' }, ...categorias]
+  const todosMats    = ['todos', ...MATERIALES]
+  const todosEstilos = ['todos', ...ESTILOS]
 
   return (
     <div className="sticky top-16 z-40 bg-mekra-white border-b border-mekra-black/10 shadow-sm">
@@ -126,9 +133,8 @@ function BarraFiltros({ busqueda, onBusqueda, categoria, onCategoria, material, 
           </select>
         </div>
 
-        {/* Fila 2: pills de categoría + divisor + pills de material + contador */}
+        {/* Fila 2: pills de categoría */}
         <div className="flex items-center gap-2 overflow-x-auto pb-px">
-
           <div className="flex gap-1.5 shrink-0">
             {todasCats.map(cat => (
               <button
@@ -144,9 +150,10 @@ function BarraFiltros({ busqueda, onBusqueda, categoria, onCategoria, material, 
               </button>
             ))}
           </div>
+        </div>
 
-          <div className="w-px h-4 bg-mekra-black/15 shrink-0" />
-
+        {/* Fila 3: pills de material + estilo + contador */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-px">
           <div className="flex gap-1.5 shrink-0">
             {todosMats.map(mat => (
               <button
@@ -158,7 +165,25 @@ function BarraFiltros({ busqueda, onBusqueda, categoria, onCategoria, material, 
                     : 'bg-mekra-black/5 text-mekra-black hover:bg-mekra-black/15'
                 }`}
               >
-                {mat === 'todos' ? 'Todos' : mat}
+                {mat === 'todos' ? 'Material' : mat}
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-4 bg-mekra-black/15 shrink-0" />
+
+          <div className="flex gap-1.5 shrink-0">
+            {todosEstilos.map(est => (
+              <button
+                key={est}
+                onClick={() => onEstilo(est)}
+                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded whitespace-nowrap transition-all duration-150 ${
+                  estilo === est
+                    ? 'bg-mekra-black text-white'
+                    : 'bg-mekra-black/5 text-mekra-black hover:bg-mekra-black/15'
+                }`}
+              >
+                {est === 'todos' ? 'Estilo' : est}
               </button>
             ))}
           </div>
@@ -198,10 +223,10 @@ function CardProducto({ producto }) {
         </h3>
         <div className="flex items-center justify-between gap-1">
           <span className="text-mekra-orange font-black text-sm sm:text-base leading-none">
-            S/{producto.precio}
+            {producto.precio > 0 ? `S/${producto.precio}` : 'Consultar'}
           </span>
           <button
-            onClick={e => { e.stopPropagation(); addItem(producto, 1, producto.colores[0]) }}
+            onClick={e => { e.stopPropagation(); addItem(producto, 1, producto.colores[0] ?? '') }}
             className="px-2.5 py-1.5 bg-mekra-orange text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded transition-all duration-200 hover:brightness-110 active:scale-95 whitespace-nowrap"
           >
             + Agregar
