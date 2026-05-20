@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@theme {
+  --color-mekra-black: #1A1A1A;
+  --color-mekra-orange: #FF6B00;
+  --color-mekra-white: #FFFFFF;
+  --color-mekra-dark: #111111;
+}
