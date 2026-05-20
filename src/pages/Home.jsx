@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { categorias, productos } from '../data'
 import { useCart } from '../context/CartContext'
 
@@ -143,8 +143,13 @@ function SeccionDestacados() {
 // ── CARD DE PRODUCTO — compacta ────────────────────────────────────
 
 function CardProducto({ producto, onAgregar }) {
+  const navigate = useNavigate()
+
   return (
-    <article className="group flex flex-col bg-mekra-white border border-mekra-black/10 rounded overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/10">
+    <article
+      onClick={() => navigate(`/producto/${producto.id}`)}
+      className="group flex flex-col bg-mekra-white border border-mekra-black/10 rounded overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/10 cursor-pointer"
+    >
 
       {/* Imagen con aspect-ratio fijo */}
       <div className="aspect-square bg-mekra-black/5 flex items-center justify-center">
@@ -165,7 +170,7 @@ function CardProducto({ producto, onAgregar }) {
             S/{producto.precio}
           </span>
           <button
-            onClick={onAgregar}
+            onClick={e => { e.stopPropagation(); onAgregar() }}
             className="px-2.5 py-1.5 bg-mekra-orange text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded transition-all duration-200 hover:brightness-110 active:scale-95 whitespace-nowrap"
           >
             + Agregar

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { productos, categorias } from '../data'
 import { useCart } from '../context/CartContext'
 
@@ -168,9 +168,13 @@ function BarraFiltros({ busqueda, onBusqueda, categoria, onCategoria, material, 
 
 function CardProducto({ producto }) {
   const { addItem } = useCart()
+  const navigate = useNavigate()
 
   return (
-    <article className="group flex flex-col bg-mekra-white border border-mekra-black/10 rounded overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[rgba(255,107,0,0.12)] hover:border-mekra-orange/25">
+    <article
+      onClick={() => navigate(`/producto/${producto.id}`)}
+      className="group flex flex-col bg-mekra-white border border-mekra-black/10 rounded overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[rgba(255,107,0,0.12)] hover:border-mekra-orange/25 cursor-pointer"
+    >
 
       {/* Imagen con aspect-ratio fijo */}
       <div className="aspect-square bg-mekra-black/5 flex items-center justify-center">
@@ -189,7 +193,7 @@ function CardProducto({ producto }) {
             S/{producto.precio}
           </span>
           <button
-            onClick={() => addItem(producto, 1, producto.colores[0])}
+            onClick={e => { e.stopPropagation(); addItem(producto, 1, producto.colores[0]) }}
             className="px-2.5 py-1.5 bg-mekra-orange text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded transition-all duration-200 hover:brightness-110 active:scale-95 whitespace-nowrap"
           >
             + Agregar
