@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import Navbar from './components/Navbar'
 import CartDrawer from './components/CartDrawer'
+import Footer from './components/Footer'
 import Home from './pages/Home'
 import Catalogo from './pages/Catalogo'
 import ProductoDetalle from './pages/ProductoDetalle'
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/faq" element={<FAQ />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <Footer />
       </div>
     </CartProvider>
   )

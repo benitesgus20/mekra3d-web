@@ -41,6 +41,10 @@ export default function Navbar() {
       isActive ? 'text-mekra-orange' : 'text-white hover:text-mekra-orange'
     }`
 
+  // Links de ancla (no necesitan estado activo)
+  const hashDesktop = 'text-sm font-bold uppercase tracking-widest transition-colors duration-150 text-white hover:text-mekra-orange'
+  const hashMobile  = 'block py-3 px-2 text-base font-bold uppercase tracking-widest border-b border-white/10 transition-colors text-white hover:text-mekra-orange'
+
   return (
     <nav ref={menuRef} className="fixed top-0 left-0 right-0 z-50 bg-mekra-black shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -54,10 +58,11 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-7">
             <NavLink to="/" end className={desktopLink}>Inicio</NavLink>
             <NavLink to="/catalogo" className={desktopLink}>Catálogo</NavLink>
-            <NavLink to="/faq" className={desktopLink}>FAQ</NavLink>
+            <Link to="/#sobre" className={hashDesktop}>Nosotros</Link>
+            <Link to="/#faq"   className={hashDesktop}>FAQ</Link>
             <button
               onClick={() => openCart(true)}
               className="relative flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white hover:text-mekra-orange transition-colors duration-150"
@@ -102,7 +107,7 @@ export default function Navbar() {
       {/* Mobile dropdown */}
       <div
         className={`md:hidden bg-mekra-dark overflow-hidden transition-all duration-300 ease-in-out ${
-          mobileOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
+          mobileOpen ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
         <div className="px-6 pt-2 pb-4 flex flex-col">
@@ -112,9 +117,12 @@ export default function Navbar() {
           <NavLink to="/catalogo" className={mobileLink} onClick={() => setMobileOpen(false)}>
             Catálogo
           </NavLink>
-          <NavLink to="/faq" className={mobileLink} onClick={() => setMobileOpen(false)}>
+          <Link to="/#sobre" className={hashMobile} onClick={() => setMobileOpen(false)}>
+            Nosotros
+          </Link>
+          <Link to="/#faq" className={hashMobile} onClick={() => setMobileOpen(false)}>
             FAQ
-          </NavLink>
+          </Link>
           <button
             onClick={() => { openCart(true); setMobileOpen(false) }}
             className="flex items-center gap-2 py-3 px-2 text-base font-bold uppercase tracking-widest text-white hover:text-mekra-orange transition-colors text-left"
