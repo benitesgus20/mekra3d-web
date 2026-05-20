@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 
@@ -22,6 +22,7 @@ function generarMensajeWA(items, total) {
 
 export default function CartDrawer() {
   const { items, isOpen, setIsOpen, updateQuantity, removeItem, clearCart, total } = useCart()
+  const [itemAEliminar, setItemAEliminar] = useState(null)
 
   // Bloquear scroll del body mientras el drawer está abierto
   useEffect(() => {
@@ -29,19 +30,39 @@ export default function CartDrawer() {
     return () => { document.body.style.overflow = '' }
   }, [isOpen])
 
-  // Cerrar con tecla Escape
+  // Cerrar drawer con Escape; si hay modal abierto, cerrarlo primero
   useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') setIsOpen(false) }
+    const onKey = e => {
+      if (e.key === 'Escape') {
+        if (itemAEliminar) setItemAEliminar(null)
+        else setIsOpen(false)
+      }
+    }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [setIsOpen])
+  }, [setIsOpen, itemAEliminar])
 
   const waUrl = `https://wa.me/51922372823?text=${encodeURIComponent(
     generarMensajeWA(items, total)
   )}`
 
+  function confirmarEliminar() {
+    if (!itemAEliminar) return
+    removeItem(itemAEliminar.id, itemAEliminar.color)
+    setItemAEliminar(null)
+  }
+
   return (
     <>
+      {/* Modal de confirmación — por encima del drawer */}
+      {itemAEliminar && (
+        <ModalConfirmacion
+          nombre={itemAEliminar.nombre}
+          onConfirmar={confirmarEliminar}
+          onCancelar={() => setItemAEliminar(null)}
+        />
+      )}
+
       {/* Overlay */}
       <div
         onClick={() => setIsOpen(false)}
@@ -89,6 +110,7 @@ export default function CartDrawer() {
                     item={item}
                     onCambiarCantidad={(q) => updateQuantity(item.id, item.color, q)}
                     onEliminar={() => removeItem(item.id, item.color)}
+                    onPedirConfirmacion={() => setItemAEliminar(item)}
                   />
                 ))}
               </ul>
@@ -132,7 +154,12 @@ export default function CartDrawer() {
 
 // ── ITEM DEL CARRITO ───────────────────────────────────────────────
 
-function ItemCarrito({ item, onCambiarCantidad, onEliminar }) {
+function ItemCarrito({ item, onCambiarCantidad, onEliminar, onPedirConfirmacion }) {
+  function handleMenos() {
+    if (item.quantity === 1) onPedirConfirmacion()
+    else onCambiarCantidad(item.quantity - 1)
+  }
+
   return (
     <li className="flex gap-3 py-4">
       {/* Imagen placeholder con aspect-ratio fijo */}
@@ -155,7 +182,7 @@ function ItemCarrito({ item, onCambiarCantidad, onEliminar }) {
           {/* Controles de cantidad */}
           <div className="flex items-center border border-mekra-black/15 rounded overflow-hidden">
             <button
-              onClick={() => onCambiarCantidad(item.quantity - 1)}
+              onClick={handleMenos}
               className="w-7 h-7 flex items-center justify-center text-mekra-black/60 hover:bg-mekra-black/5 hover:text-mekra-black transition-colors duration-150 text-base leading-none"
               aria-label="Reducir cantidad"
             >
@@ -217,6 +244,56 @@ function CarritoVacio({ onClose }) {
         <IconFlecha />
       </Link>
     </div>
+  )
+}
+
+// ── MODAL DE CONFIRMACIÓN ──────────────────────────────────────────
+
+function ModalConfirmacion({ nombre, onConfirmar, onCancelar }) {
+  return (
+    <>
+      {/* Overlay del modal — sobre el drawer */}
+      <div
+        onClick={onCancelar}
+        aria-hidden
+        className="fixed inset-0 z-[65] bg-black/70 transition-opacity duration-200"
+      />
+
+      {/* Tarjeta centrada */}
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-label="Confirmar eliminación"
+        className="fixed z-[70] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-xs bg-mekra-white rounded-lg shadow-2xl p-6 flex flex-col items-center text-center"
+      >
+        {/* Ícono de alerta */}
+        <div className="w-12 h-12 rounded-full bg-mekra-orange/10 flex items-center justify-center mb-4">
+          <IconBasura size={22} />
+        </div>
+
+        <h3 className="font-black text-mekra-black text-base mb-1 leading-tight">
+          ¿Quieres eliminar este producto?
+        </h3>
+        <p className="text-mekra-black/50 text-xs mb-6 line-clamp-2 leading-relaxed">
+          {nombre}
+        </p>
+
+        <div className="flex flex-col gap-2 w-full">
+          <button
+            onClick={onConfirmar}
+            className="w-full py-3 bg-mekra-orange text-white font-black uppercase tracking-widest text-xs rounded transition-all duration-150 hover:brightness-110"
+          >
+            Sí, eliminar
+          </button>
+          <button
+            onClick={onCancelar}
+            className="w-full py-3 border-2 border-mekra-orange text-mekra-orange font-black uppercase tracking-widest text-xs rounded transition-all duration-150 hover:bg-mekra-orange hover:text-white"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </>
   )
 }
 
