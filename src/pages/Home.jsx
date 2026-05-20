@@ -35,7 +35,7 @@ function Hero() {
         </div>
 
         {/* Título en 2 líneas para mantener compacto */}
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight mb-4">
+        <h1 className="text-2xl sm:text-4xl lg:text-5xl xl:text-6xl font-black text-white leading-tight tracking-tight mb-4">
           Si existe, lo tenemos.<br />
           Si no existe,{' '}
           <span className="text-mekra-orange">lo creamos.</span>
@@ -77,15 +77,24 @@ function Hero() {
 function FranjaCategorias() {
   return (
     <div className="bg-mekra-dark border-t border-b border-white/5">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <div className="grid grid-cols-5 gap-2 sm:gap-3">
+      <div className="max-w-7xl mx-auto py-3">
+        {/*
+          Móvil: flex con scroll horizontal, ítems de ancho mínimo fijo.
+          sm+: cambia a grid de 5 columnas para llenar todo el ancho.
+        */}
+        <div className="flex gap-2 overflow-x-auto px-4 sm:px-6 lg:px-8
+                        pb-1 sm:pb-0
+                        sm:grid sm:grid-cols-5 sm:gap-3 sm:overflow-visible">
           {categorias.map(cat => (
             <Link
               key={cat.id}
               to={`/catalogo?categoria=${cat.id}`}
-              className="group flex flex-col items-center gap-1 py-2.5 px-1 rounded border border-white/10 transition-all duration-200 hover:border-mekra-orange hover:bg-mekra-orange/5"
+              className="group flex flex-col items-center gap-1 py-2.5 px-2
+                         shrink-0 min-w-[72px] sm:min-w-0
+                         rounded border border-white/10
+                         transition-all duration-200 hover:border-mekra-orange hover:bg-mekra-orange/5"
             >
-              <span className="text-lg sm:text-2xl leading-none">{cat.emoji}</span>
+              <span className="text-xl sm:text-2xl leading-none">{cat.emoji}</span>
               <span className="text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-center transition-colors duration-200 group-hover:text-mekra-orange leading-tight">
                 {cat.nombre}
               </span>

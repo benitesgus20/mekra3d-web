@@ -1,12 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { count, setIsOpen: openCart } = useCart()
   const menuRef = useRef(null)
+  const location = useLocation()
 
+  // Cerrar menú al cambiar de ruta (botón atrás incluido)
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
+
+  // Cerrar al hacer clic fuera
   useEffect(() => {
     function onOutsideClick(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -16,6 +23,13 @@ export default function Navbar() {
     if (mobileOpen) document.addEventListener('mousedown', onOutsideClick)
     return () => document.removeEventListener('mousedown', onOutsideClick)
   }, [mobileOpen])
+
+  // Cerrar con Escape
+  useEffect(() => {
+    const onEsc = e => { if (e.key === 'Escape') setMobileOpen(false) }
+    document.addEventListener('keydown', onEsc)
+    return () => document.removeEventListener('keydown', onEsc)
+  }, [])
 
   const desktopLink = ({ isActive }) =>
     `text-sm font-bold uppercase tracking-widest transition-colors duration-150 ${
@@ -86,10 +100,9 @@ export default function Navbar() {
 
       {/* Mobile dropdown */}
       <div
-        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+        className={`md:hidden bg-mekra-dark overflow-hidden transition-all duration-300 ease-in-out ${
           mobileOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
         }`}
-        style={{ background: '#111111' }}
       >
         <div className="px-6 pt-2 pb-4 flex flex-col">
           <NavLink to="/" end className={mobileLink} onClick={() => setMobileOpen(false)}>
