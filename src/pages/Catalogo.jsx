@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { productos, categorias } from '../data'
 import { useCart } from '../context/CartContext'
@@ -27,10 +27,19 @@ export default function Catalogo() {
   const [orden, setOrden]         = useState('nuevos')
   const [categoria, setCategoria] = useState(() => searchParams.get('categoria') || 'todos')
 
+  const productosRef = useRef(null)
+
   // Sincroniza la categoría cuando el usuario llega desde un link con ?categoria=xxx
   useEffect(() => {
     setCategoria(searchParams.get('categoria') || 'todos')
   }, [searchParams])
+
+  // Scroll al inicio de los productos al cambiar cualquier filtro
+  useEffect(() => {
+    if (!productosRef.current) return
+    const y = productosRef.current.getBoundingClientRect().top + window.scrollY - 128
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
+  }, [categoria, material, estilo, orden])
 
   function cambiarCategoria(nueva) {
     setCategoria(nueva)
@@ -82,7 +91,7 @@ export default function Catalogo() {
       {/* Banner Laboon — entre filtros y grid, solo en categoría Mujer */}
       {categoria === 'mujer' && <BannerLaboonTop />}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div ref={productosRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {resultados.length === 0
           ? <EstadoVacio />
           : (
