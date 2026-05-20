@@ -241,8 +241,8 @@ function BannerLaboon() {
           Línea Laboon
         </p>
         <p className="text-mekra-black font-bold text-sm sm:text-base leading-snug">
-          ¿Quieres ver más diseños?{' '}
-          <span className="font-black">Síguenos en Instagram</span>
+          ¿Te inspira Laboon?{' '}
+          <span className="font-black">Síguenos para contenido exclusivo y promociones especiales 💗</span>
         </p>
       </div>
       <a
