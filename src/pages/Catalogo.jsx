@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { productos, categorias } from '../data'
 import { useCart } from '../context/CartContext'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const MATERIALES = ['PLA+', 'ABS', 'PETG']
 
@@ -17,6 +18,7 @@ const WA_URL = `https://wa.me/51922372823?text=${encodeURIComponent(
 )}`
 
 export default function Catalogo() {
+  useDocumentTitle('Catálogo')
   const [searchParams, setSearchParams] = useSearchParams()
   const [busqueda, setBusqueda]   = useState('')
   const [material, setMaterial]   = useState('todos')

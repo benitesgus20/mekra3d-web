@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { productos } from '../data'
 import { useCart } from '../context/CartContext'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 // Devuelve el descuento aplicable y el precio final según la cantidad
 function calcularPrecio(precioBase, cantidad, descuentos) {
@@ -26,6 +27,7 @@ export default function ProductoDetalle() {
 // ── CONTENIDO PRINCIPAL ────────────────────────────────────────────
 
 function DetalleContenido({ producto }) {
+  useDocumentTitle(producto.nombre)
   const { addItem, setIsOpen } = useCart()
   const [colorSeleccionado, setColorSeleccionado] = useState(producto.colores[0])
   const [cantidad, setCantidad] = useState(1)

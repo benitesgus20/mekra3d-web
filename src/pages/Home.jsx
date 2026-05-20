@@ -1,12 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { categorias, productos } from '../data'
 import { useCart } from '../context/CartContext'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const WA_PERSONALIZADO = `https://wa.me/51922372823?text=${encodeURIComponent(
   'Hola, quiero pedir un producto personalizado en Mekra3D 🎨'
 )}`
 
 export default function Home() {
+  useDocumentTitle()
   return (
     <>
       <Hero />
