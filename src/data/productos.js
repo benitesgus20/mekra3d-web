@@ -267,6 +267,22 @@ export const productos = [
   // ── HOGAR ─────────────────────────────────────────────────────────
 
   {
+    id: 'caja-lazo-con-tapa',
+    nombre: 'Caja Lazo con Tapa',
+    categoria: 'hogar',
+    subcategoria: 'Almacenaje',
+    estilo: 'Clásico',
+    material: 'PLA',
+    peso: '216g',
+    tiempo_fabricacion: '9 horas',
+    precio: 42,
+    colores: ['rosa pastel', 'blanco', 'verde pastel'],
+    fotos: [],
+    descripcion: '',
+    descuentos_cantidad: [],
+    activo: true,
+  },
+  {
     id: 'jarron-decorativo',
     nombre: 'Jarrón Decorativo',
     categoria: 'hogar',
