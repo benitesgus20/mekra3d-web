@@ -34,6 +34,8 @@ export default function Catalogo() {
 
   function cambiarCategoria(nueva) {
     setCategoria(nueva)
+    // El filtro de estilo solo aplica a Figuras; resetear al cambiar de categoría
+    if (nueva !== 'figuras') setEstilo('todos')
     const p = new URLSearchParams(searchParams)
     if (nueva === 'todos') p.delete('categoria')
     else p.set('categoria', nueva)
@@ -103,6 +105,8 @@ function BarraFiltros({ busqueda, onBusqueda, categoria, onCategoria, material, 
   const todasCats    = [{ id: 'todos', nombre: 'Todos' }, ...categorias]
   const todosMats    = ['todos', ...MATERIALES]
   const todosEstilos = ['todos', ...ESTILOS]
+  // El filtro de estilo solo tiene sentido en la categoría de Figuras
+  const mostrarEstilo = categoria === 'figuras'
 
   return (
     <div className="sticky top-16 z-40 bg-mekra-white border-b border-mekra-black/10 shadow-sm">
@@ -170,23 +174,26 @@ function BarraFiltros({ busqueda, onBusqueda, categoria, onCategoria, material, 
             ))}
           </div>
 
-          <div className="w-px h-4 bg-mekra-black/15 shrink-0" />
-
-          <div className="flex gap-1.5 shrink-0">
-            {todosEstilos.map(est => (
-              <button
-                key={est}
-                onClick={() => onEstilo(est)}
-                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded whitespace-nowrap transition-all duration-150 ${
-                  estilo === est
-                    ? 'bg-mekra-black text-white'
-                    : 'bg-mekra-black/5 text-mekra-black hover:bg-mekra-black/15'
-                }`}
-              >
-                {est === 'todos' ? 'Estilo' : est}
-              </button>
-            ))}
-          </div>
+          {mostrarEstilo && (
+            <>
+              <div className="w-px h-4 bg-mekra-black/15 shrink-0" />
+              <div className="flex gap-1.5 shrink-0">
+                {todosEstilos.map(est => (
+                  <button
+                    key={est}
+                    onClick={() => onEstilo(est)}
+                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded whitespace-nowrap transition-all duration-150 ${
+                      estilo === est
+                        ? 'bg-mekra-black text-white'
+                        : 'bg-mekra-black/5 text-mekra-black hover:bg-mekra-black/15'
+                    }`}
+                  >
+                    {est === 'todos' ? 'Estilo' : est}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           <span className="ml-auto shrink-0 text-[10px] text-mekra-black/40 font-bold tabular-nums whitespace-nowrap">
             {total} resultado{total !== 1 ? 's' : ''}
