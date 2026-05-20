@@ -7,6 +7,7 @@ const MATERIALES = ['PLA+', 'ABS', 'PETG']
 
 const OPCIONES_ORDEN = [
   { value: 'nuevos',      label: 'Más nuevos'   },
+  { value: 'popular',     label: 'Tendencia'    },
   { value: 'precio-asc',  label: 'Precio menor' },
   { value: 'precio-desc', label: 'Precio mayor' },
 ]
@@ -54,6 +55,7 @@ export default function Catalogo() {
 
     if (orden === 'precio-asc')  return [...lista].sort((a, b) => a.precio - b.precio)
     if (orden === 'precio-desc') return [...lista].sort((a, b) => b.precio - a.precio)
+    if (orden === 'popular')     return [...lista].sort((a, b) => (b.popular ? 1 : 0) - (a.popular ? 1 : 0))
     return lista
   }, [busqueda, categoria, material, orden])
 

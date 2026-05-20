@@ -27,6 +27,7 @@ export const productos = [
       { minimo: 3, porcentaje: 10 },
       { minimo: 6, porcentaje: 20 },
     ],
+    popular: true,
     activo: true,
   },
   {
@@ -42,6 +43,7 @@ export const productos = [
     descuentos_cantidad: [
       { minimo: 3, porcentaje: 10 },
     ],
+    popular: true,
     activo: true,
   },
   {
@@ -86,6 +88,7 @@ export const productos = [
     descuentos_cantidad: [
       { minimo: 3, porcentaje: 15 },
     ],
+    popular: true,
     activo: true,
   },
   {
