@@ -71,6 +71,9 @@ export default function Catalogo() {
         total={resultados.length}
       />
 
+      {/* Banner Laboon — entre filtros y grid, solo en categoría Mujer */}
+      {categoria === 'mujer' && <BannerLaboonTop />}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {resultados.length === 0
           ? <EstadoVacio />
@@ -209,7 +212,26 @@ function CardProducto({ producto }) {
   )
 }
 
-// ── BANNER LABOON ──────────────────────────────────────────────────
+// ── BANNER LABOON SUPERIOR — entre filtros y grid ─────────────────
+
+function BannerLaboonTop() {
+  return (
+    <a
+      href="https://www.instagram.com/laboon_pe/"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center justify-center gap-2.5 px-4 py-3 bg-[#FFF0F5] border-b border-pink-100 hover:bg-pink-100 transition-colors duration-150"
+    >
+      <IconInstagram />
+      <span className="text-xs sm:text-sm font-bold text-mekra-black">
+        <span className="text-pink-500 font-black">@laboon_pe</span>
+        {' '}— nuestra línea femenina
+      </span>
+    </a>
+  )
+}
+
+// ── BANNER LABOON INFERIOR — debajo del grid ───────────────────────
 
 function BannerLaboon() {
   return (
