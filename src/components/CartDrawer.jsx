@@ -2,6 +2,34 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 
+// Niveles de descuento automático por monto
+const NIVELES = [
+  { minimo: 200, descuento: 30 },
+  { minimo: 100, descuento: 15 },
+  { minimo:  50, descuento:  5 },
+]
+
+function calcularDescuentoAuto(subtotal) {
+  const nivel = NIVELES.find(n => subtotal >= n.minimo)
+  return nivel ? nivel.descuento : 0
+}
+
+function calcularProgreso(subtotal) {
+  if (subtotal >= 200) {
+    return { pct: 100, mensaje: '¡Máximo descuento aplicado! 🎉', max: true }
+  }
+  if (subtotal >= 100) {
+    const pct = ((subtotal - 100) / 100) * 100
+    return { pct, mensaje: `Te faltan S/${(200 - subtotal).toFixed(0)} para obtener S/30 off`, max: false }
+  }
+  if (subtotal >= 50) {
+    const pct = ((subtotal - 50) / 50) * 100
+    return { pct, mensaje: `Te faltan S/${(100 - subtotal).toFixed(0)} para obtener S/15 off`, max: false }
+  }
+  const pct = (subtotal / 50) * 100
+  return { pct, mensaje: `Te faltan S/${(50 - subtotal).toFixed(0)} para obtener S/5 off`, max: false }
+}
+
 // Cupones válidos hardcodeados
 const CUPONES = {
   'MEKRA10':  { porcentaje: 10 },
@@ -10,23 +38,22 @@ const CUPONES = {
   'PRIMERA':  { porcentaje:  5 },
 }
 
-function generarMensajeWA(items, total, cuponAplicado) {
+function generarMensajeWA(items, total, cuponAplicado, descuentoAuto) {
   const lineas = items.map(item => {
     const subtotal = (item.precio * item.quantity).toFixed(2)
     const color = item.color ? ` (${item.color})` : ''
     return `• ${item.quantity}x ${item.nombre}${color} — S/${subtotal}`
   })
 
-  const descuento = cuponAplicado ? total * (cuponAplicado.porcentaje / 100) : 0
-  const totalFinal = total - descuento
+  const descuentoCupon = cuponAplicado ? total * (cuponAplicado.porcentaje / 100) : 0
+  const totalFinal = total - descuentoAuto - descuentoCupon
 
-  const bloqueTotal = cuponAplicado
-    ? [
-        `Subtotal: S/${total.toFixed(2)}`,
-        `Cupón ${cuponAplicado.codigo} (${cuponAplicado.porcentaje}% OFF): -S/${descuento.toFixed(2)}`,
-        `Total: S/${totalFinal.toFixed(2)}`,
-      ]
-    : [`Total: S/${total.toFixed(2)}`]
+  const bloqueTotal = ['Subtotal: S/' + total.toFixed(2)]
+  if (descuentoAuto > 0)
+    bloqueTotal.push(`Descuento por compra: -S/${descuentoAuto.toFixed(2)}`)
+  if (cuponAplicado)
+    bloqueTotal.push(`Cupón ${cuponAplicado.codigo} (${cuponAplicado.porcentaje}% OFF): -S/${descuentoCupon.toFixed(2)}`)
+  bloqueTotal.push(`Total: S/${totalFinal.toFixed(2)}`)
 
   return [
     'Hola! Quiero hacer un pedido en Mekra3D 🧡',
@@ -48,9 +75,11 @@ export default function CartDrawer() {
   const [cuponAplicado, setCuponAplicado] = useState(null)   // { codigo, porcentaje } | null
   const [estadoCupon, setEstadoCupon]   = useState('idle')   // 'idle' | 'valido' | 'invalido'
 
-  // Montos derivados del cupón
-  const descuento  = cuponAplicado ? total * (cuponAplicado.porcentaje / 100) : 0
-  const totalFinal = total - descuento
+  // Descuento automático por monto + descuento por cupón
+  const descuentoAuto  = calcularDescuentoAuto(total)
+  const progreso       = calcularProgreso(total)
+  const descuentoCupon = cuponAplicado ? total * (cuponAplicado.porcentaje / 100) : 0
+  const totalFinal     = total - descuentoAuto - descuentoCupon
 
   // Resetear cupón cuando el carrito se queda vacío
   useEffect(() => {
@@ -76,7 +105,7 @@ export default function CartDrawer() {
   }, [setIsOpen, itemAEliminar])
 
   const waUrl = `https://wa.me/51922372823?text=${encodeURIComponent(
-    generarMensajeWA(items, total, cuponAplicado)
+    generarMensajeWA(items, total, cuponAplicado, descuentoAuto)
   )}`
 
   function confirmarEliminar() {
@@ -173,6 +202,9 @@ export default function CartDrawer() {
               {/* Pie con cupón + resumen + botones */}
               <div className="shrink-0 border-t border-mekra-black/10 px-5 pt-4 pb-6 space-y-3">
 
+                {/* Barra de progreso de descuento automático */}
+                <BarraProgreso progreso={progreso} />
+
                 {/* Campo de cupón */}
                 <CampoCupon
                   codigoInput={codigoInput}
@@ -185,7 +217,7 @@ export default function CartDrawer() {
 
                 {/* Resumen de montos */}
                 <div className="space-y-1.5">
-                  {cuponAplicado && (
+                  {(descuentoAuto > 0 || cuponAplicado) && (
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-mekra-black/50 uppercase tracking-wider">
                         Subtotal
@@ -196,18 +228,29 @@ export default function CartDrawer() {
                     </div>
                   )}
 
-                  {cuponAplicado && (
+                  {descuentoAuto > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-green-600 uppercase tracking-wider">
-                        Descuento ({cuponAplicado.porcentaje}%)
+                        Descuento por compra
                       </span>
                       <span className="text-sm font-bold text-green-600">
-                        -S/{descuento.toFixed(2)}
+                        -S/{descuentoAuto.toFixed(2)}
                       </span>
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between">
+                  {cuponAplicado && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-green-600 uppercase tracking-wider">
+                        Cupón {cuponAplicado.codigo} ({cuponAplicado.porcentaje}%)
+                      </span>
+                      <span className="text-sm font-bold text-green-600">
+                        -S/{descuentoCupon.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1 border-t border-mekra-black/8">
                     <span className="text-sm font-bold text-mekra-black/50 uppercase tracking-wider">
                       Total del pedido
                     </span>
@@ -240,6 +283,37 @@ export default function CartDrawer() {
         }
       </div>
     </>
+  )
+}
+
+// ── BARRA DE PROGRESO DE DESCUENTO ────────────────────────────────
+
+function BarraProgreso({ progreso }) {
+  return (
+    <div className="bg-mekra-black/[0.03] rounded-lg px-3.5 py-3 space-y-2">
+      {/* Mensaje motivacional */}
+      <p className={`text-[11px] font-bold leading-snug ${progreso.max ? 'text-green-600' : 'text-mekra-black/60'}`}>
+        {progreso.max
+          ? <span className="text-green-600">{progreso.mensaje}</span>
+          : progreso.mensaje
+        }
+      </p>
+
+      {/* Barra de progreso */}
+      <div className="h-1.5 w-full bg-mekra-black/10 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-mekra-orange rounded-full transition-all duration-500 ease-out"
+          style={{ width: `${Math.min(100, progreso.pct)}%` }}
+        />
+      </div>
+
+      {/* Niveles */}
+      <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-mekra-black/30">
+        <span>S/50 → -5</span>
+        <span>S/100 → -15</span>
+        <span>S/200 → -30</span>
+      </div>
+    </div>
   )
 }
 
