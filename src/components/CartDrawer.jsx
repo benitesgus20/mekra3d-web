@@ -14,21 +14,6 @@ function calcularDescuentoAuto(subtotal) {
   return nivel ? nivel.descuento : 0
 }
 
-function calcularProgreso(subtotal) {
-  if (subtotal >= 200) {
-    return { pct: 100, mensaje: '¡Máximo descuento aplicado! 🎉', max: true }
-  }
-  if (subtotal >= 100) {
-    const pct = ((subtotal - 100) / 100) * 100
-    return { pct, mensaje: `Te faltan S/${(200 - subtotal).toFixed(0)} para obtener S/30 off`, max: false }
-  }
-  if (subtotal >= 50) {
-    const pct = ((subtotal - 50) / 50) * 100
-    return { pct, mensaje: `Te faltan S/${(100 - subtotal).toFixed(0)} para obtener S/15 off`, max: false }
-  }
-  const pct = (subtotal / 50) * 100
-  return { pct, mensaje: `Te faltan S/${(50 - subtotal).toFixed(0)} para obtener S/5 off`, max: false }
-}
 
 // Cupones válidos hardcodeados
 const CUPONES = {
@@ -77,7 +62,6 @@ export default function CartDrawer() {
 
   // Descuento automático por monto + descuento por cupón
   const descuentoAuto  = calcularDescuentoAuto(total)
-  const progreso       = calcularProgreso(total)
   const descuentoCupon = cuponAplicado ? total * (cuponAplicado.porcentaje / 100) : 0
   const totalFinal     = total - descuentoAuto - descuentoCupon
 
@@ -203,7 +187,7 @@ export default function CartDrawer() {
               <div className="shrink-0 border-t border-mekra-black/10 px-5 pt-4 pb-6 space-y-3">
 
                 {/* Barra de progreso de descuento automático */}
-                <BarraProgreso progreso={progreso} />
+                <BarraProgreso total={total} />
 
                 {/* Campo de cupón */}
                 <CampoCupon
@@ -289,32 +273,158 @@ export default function CartDrawer() {
 
 // ── BARRA DE PROGRESO DE DESCUENTO ────────────────────────────────
 
-function BarraProgreso({ progreso }) {
-  return (
-    <div className="bg-mekra-black/[0.03] rounded-lg px-3.5 py-3 space-y-2">
-      {/* Mensaje motivacional */}
-      <p className={`text-[11px] font-bold leading-snug ${progreso.max ? 'text-green-600' : 'text-mekra-black/60'}`}>
-        {progreso.max
-          ? <span className="text-green-600">{progreso.mensaje}</span>
-          : progreso.mensaje
-        }
-      </p>
+const MARCADORES = [
+  { monto: 50,  descuento: 5,  pctBarra: 25  },
+  { monto: 100, descuento: 15, pctBarra: 50  },
+  { monto: 200, descuento: 30, pctBarra: 100 },
+]
 
-      {/* Barra de progreso */}
-      <div className="h-1.5 w-full bg-mekra-black/10 rounded-full overflow-hidden">
+function BarraProgreso({ total }) {
+  const barPct = Math.min(total / 200 * 100, 100)
+  const max    = total >= 200
+
+  // Borde punteado cuando está a S/20 del siguiente nivel
+  const cerca = !max && (
+    (total >= 30 && total < 50) ||
+    (total >= 80 && total < 100) ||
+    (total >= 180 && total < 200)
+  )
+
+  let textoGrande, textoChico
+  if (max) {
+    textoGrande = null
+    textoChico  = 'Ahorraste S/30 🔥'
+  } else if (total >= 100) {
+    textoGrande = `¡Solo S/${Math.ceil(200 - total)} más!`
+    textoChico  = 'y obtienes S/30 de descuento'
+  } else if (total >= 50) {
+    textoGrande = `¡Solo S/${Math.ceil(100 - total)} más!`
+    textoChico  = 'y obtienes S/15 de descuento'
+  } else {
+    textoGrande = `¡Solo S/${Math.ceil(50 - total)} más!`
+    textoChico  = 'y obtienes S/5 de descuento'
+  }
+
+  return (
+    <div className={`rounded-xl px-4 py-4 space-y-3 transition-all duration-500 ${
+      max   ? 'bg-[#1A1A1A] border border-green-500/25'
+      : cerca ? 'bg-[#1A1A1A] border-2 border-dashed border-mekra-orange/55'
+      :         'bg-[#1A1A1A] border border-white/[0.06]'
+    }`}>
+
+      {/* Confetti cuando se alcanza el máximo */}
+      {max && <Confetti />}
+
+      {/* Mensaje motivacional */}
+      {max ? (
+        <div className="text-center">
+          <p className="text-sm font-black text-green-400">🎉 ¡Descuento aplicado!</p>
+          <p className="text-[11px] text-green-400/60 mt-0.5">{textoChico}</p>
+        </div>
+      ) : (
+        <div>
+          <p className="text-sm font-black text-white leading-tight">{textoGrande}</p>
+          <p className="text-[11px] text-white/40 mt-0.5">{textoChico}</p>
+        </div>
+      )}
+
+      {/* Emojis de regalo sobre la barra */}
+      <div className="relative h-5">
+        {MARCADORES.map((m, idx) => {
+          const alcanzado = total >= m.monto
+          return (
+            <div
+              key={m.monto}
+              className={`absolute top-0 flex items-center justify-center transition-all duration-500 ${
+                idx === 2 ? '-translate-x-full' : '-translate-x-1/2'
+              } ${alcanzado ? 'scale-125' : 'opacity-25 grayscale'}`}
+              style={{ left: `${m.pctBarra}%` }}
+            >
+              <span className="text-sm leading-none select-none">🎁</span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Barra con gradiente */}
+      <div className="h-3 rounded-full bg-[#2A2A2A] overflow-hidden">
         <div
-          className="h-full bg-mekra-orange rounded-full transition-all duration-500 ease-out"
-          style={{ width: `${Math.min(100, progreso.pct)}%` }}
+          className="h-full rounded-full transition-all duration-500 ease-out"
+          style={{
+            width: `${barPct}%`,
+            background: 'linear-gradient(to right, #FF6B00, #FFB800)',
+            boxShadow: barPct > 5 ? '0 0 8px rgba(255,107,0,0.45)' : 'none',
+          }}
         />
       </div>
 
-      {/* Niveles */}
-      <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-mekra-black/30">
-        <span>S/50 → -5</span>
-        <span>S/100 → -15</span>
-        <span>S/200 → -30</span>
+      {/* Etiquetas bajo la barra */}
+      <div className="relative h-8">
+        {MARCADORES.map((m, idx) => {
+          const alcanzado = total >= m.monto
+          return (
+            <div
+              key={m.monto}
+              className={`absolute top-0 flex flex-col items-center gap-0.5 transition-colors duration-300 ${
+                idx === 2 ? '-translate-x-full' : '-translate-x-1/2'
+              }`}
+              style={{ left: `${m.pctBarra}%` }}
+            >
+              <span className={`text-[9px] font-black leading-none ${alcanzado ? 'text-green-400' : 'text-white/30'}`}>
+                S/{m.monto}
+              </span>
+              <span className={`text-[9px] font-bold leading-none ${alcanzado ? 'text-green-400' : 'text-white/20'}`}>
+                -{m.descuento}
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
+  )
+}
+
+// ── CONFETTI — efecto celebración al alcanzar S/200 ───────────────
+
+function Confetti() {
+  const PIEZAS = [
+    { color: '#FF6B00', left: '5%',  delay: '0.00s', size: 5 },
+    { color: '#FFB800', left: '15%', delay: '0.10s', size: 4 },
+    { color: '#FF3B3B', left: '25%', delay: '0.20s', size: 6 },
+    { color: '#00C896', left: '35%', delay: '0.05s', size: 4 },
+    { color: '#A78BFA', left: '45%', delay: '0.15s', size: 5 },
+    { color: '#FFB800', left: '55%', delay: '0.25s', size: 4 },
+    { color: '#FF6B00', left: '65%', delay: '0.08s', size: 6 },
+    { color: '#FF3B3B', left: '75%', delay: '0.18s', size: 4 },
+    { color: '#00C896', left: '85%', delay: '0.12s', size: 5 },
+    { color: '#A78BFA', left: '93%', delay: '0.22s', size: 4 },
+  ]
+
+  return (
+    <>
+      <style>{`
+        @keyframes mekra-confetti {
+          0%   { transform: translateY(-4px) rotate(0deg) scale(1); opacity: 1; }
+          60%  { opacity: 1; }
+          100% { transform: translateY(28px) rotate(480deg) scale(0.4); opacity: 0; }
+        }
+      `}</style>
+      <div className="relative h-6 overflow-hidden pointer-events-none" aria-hidden>
+        {PIEZAS.map((p, i) => (
+          <div
+            key={i}
+            className="absolute top-0 rounded-sm"
+            style={{
+              left: p.left,
+              width: p.size,
+              height: p.size,
+              backgroundColor: p.color,
+              animation: `mekra-confetti 1.4s ease-in ${p.delay} infinite`,
+            }}
+          />
+        ))}
+      </div>
+    </>
   )
 }
 
