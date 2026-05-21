@@ -226,8 +226,15 @@ function CardProducto({ producto }) {
     >
 
       {/* Imagen con aspect-ratio fijo */}
-      <div className="aspect-square bg-mekra-black/5 flex items-center justify-center">
-        <IconCubo />
+      <div className="aspect-square bg-mekra-black/5 flex items-center justify-center overflow-hidden">
+        {producto.fotos.length > 0
+          ? <img
+              src={producto.fotos[0]}
+              alt={producto.nombre}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          : <IconCubo />
+        }
       </div>
 
       <div className="flex flex-col flex-1 p-3">
