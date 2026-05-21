@@ -344,8 +344,15 @@ function CardProducto({ producto, onAgregar }) {
       onClick={() => navigate(`/producto/${producto.id}`)}
       className="group flex flex-col bg-mekra-white border border-mekra-black/10 rounded overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/10 cursor-pointer"
     >
-      <div className="aspect-square bg-mekra-black/5 flex items-center justify-center">
-        <IconCubo />
+      <div className="aspect-square bg-mekra-black/5 flex items-center justify-center overflow-hidden">
+        {producto.fotos?.length > 0
+          ? <img
+              src={producto.fotos[0]}
+              alt={producto.nombre}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          : <IconCubo />
+        }
       </div>
       <div className="flex flex-col flex-1 p-3">
         <span className="text-mekra-orange text-[9px] sm:text-[10px] font-bold uppercase tracking-widest leading-none">
@@ -356,7 +363,7 @@ function CardProducto({ producto, onAgregar }) {
         </h3>
         <div className="flex items-center justify-between gap-1 mt-auto">
           <span className="text-mekra-orange font-black text-sm sm:text-base">
-            S/{producto.precio}
+            {producto.precio > 0 ? `S/${producto.precio}` : 'Consultar'}
           </span>
           <button
             onClick={e => { e.stopPropagation(); onAgregar() }}
