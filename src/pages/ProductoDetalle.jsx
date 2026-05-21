@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { productos } from '../data'
 import { useCart } from '../context/CartContext'
@@ -31,7 +31,6 @@ function DetalleContenido({ producto }) {
   const { addItem, setIsOpen } = useCart()
   const [colorSeleccionado, setColorSeleccionado] = useState(producto.colores[0] ?? null)
   const [cantidad, setCantidad] = useState(1)
-  const [imagenActiva, setImagenActiva] = useState(0)
 
   const descuentos = producto.descuentos_cantidad ?? []
   const { precioFinal, porcentaje: dtoActivo } = calcularPrecio(
@@ -46,11 +45,6 @@ function DetalleContenido({ producto }) {
     addItem(producto, cantidad, colorSeleccionado)
     setIsOpen(true)
   }
-
-  // Genera N vistas placeholder si no hay fotos reales
-  const vistas = producto.fotos.length > 0
-    ? producto.fotos
-    : [0, 1, 2]
 
   return (
     <div className="min-h-screen bg-mekra-white">
@@ -72,13 +66,7 @@ function DetalleContenido({ producto }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-14">
 
           {/* ── GALERÍA ─────────────────────────────── */}
-          <Galeria
-            vistas={vistas}
-            fotos={producto.fotos}
-            nombre={producto.nombre}
-            imagenActiva={imagenActiva}
-            onSeleccionar={setImagenActiva}
-          />
+          <Galeria fotos={producto.fotos} nombre={producto.nombre} />
 
           {/* ── INFO ────────────────────────────────── */}
           <div className="flex flex-col gap-5">
@@ -237,41 +225,126 @@ function DetalleContenido({ producto }) {
   )
 }
 
-// ── GALERÍA ────────────────────────────────────────────────────────
+// ── GALERÍA — CARRUSEL ────────────────────────────────────────────
 
-function Galeria({ vistas, fotos, nombre, imagenActiva, onSeleccionar }) {
-  const tieneImagenesReales = fotos.length > 0
+function Galeria({ fotos, nombre }) {
+  const [activa, setActiva] = useState(0)
+  const touchStartX = useRef(null)
+  const total = fotos.length
+
+  function irA(idx) {
+    setActiva((idx + total) % total)
+  }
+
+  function onTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  function onTouchEnd(e) {
+    if (touchStartX.current === null) return
+    const delta = touchStartX.current - e.changedTouches[0].clientX
+    if (Math.abs(delta) > 40) irA(activa + (delta > 0 ? 1 : -1))
+    touchStartX.current = null
+  }
+
+  // Sin fotos: placeholder estático
+  if (total === 0) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="aspect-square rounded-lg bg-mekra-black/5 flex items-center justify-center">
+          <IconCuboGrande />
+        </div>
+        <div className="flex gap-2">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="w-16 h-16 sm:w-20 sm:h-20 rounded bg-mekra-black/5 flex items-center justify-center">
+              <IconCuboPequeno />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Imagen principal */}
-      <div className="aspect-square rounded-lg bg-mekra-black/5 flex items-center justify-center overflow-hidden">
-        {tieneImagenesReales
-          ? <img src={fotos[imagenActiva]} alt={nombre} className="w-full h-full object-cover" />
-          : <IconCuboGrande />
-        }
+
+      {/* Imagen principal con track deslizable */}
+      <div
+        className="relative aspect-square rounded-lg overflow-hidden bg-mekra-black/5 group select-none"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Track: todas las imágenes en fila, se desplaza por transform */}
+        <div
+          className="flex h-full transition-transform duration-300 ease-in-out"
+          style={{
+            width: `${total * 100}%`,
+            transform: `translateX(-${activa * (100 / total)}%)`,
+          }}
+        >
+          {fotos.map((foto, i) => (
+            <div key={i} className="h-full shrink-0" style={{ width: `${100 / total}%` }}>
+              <img
+                src={foto}
+                alt={`${nombre} — foto ${i + 1}`}
+                className="w-full h-full object-cover"
+                draggable={false}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Flechas — siempre visibles en móvil, solo en hover en desktop */}
+        {total > 1 && (
+          <>
+            <button
+              onClick={() => irA(activa - 1)}
+              aria-label="Foto anterior"
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-mekra-black/50 backdrop-blur-sm text-white flex items-center justify-center transition-all duration-150 hover:bg-mekra-black/75 md:opacity-0 md:group-hover:opacity-100"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button
+              onClick={() => irA(activa + 1)}
+              aria-label="Foto siguiente"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-mekra-black/50 backdrop-blur-sm text-white flex items-center justify-center transition-all duration-150 hover:bg-mekra-black/75 md:opacity-0 md:group-hover:opacity-100"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </>
+        )}
+
+        {/* Contador — solo en móvil (las miniaturas cumplen la función en desktop) */}
+        {total > 1 && (
+          <span className="absolute bottom-2 right-2 md:hidden bg-mekra-black/55 text-white text-[10px] font-bold px-2 py-0.5 rounded-full tabular-nums">
+            {activa + 1}/{total}
+          </span>
+        )}
       </div>
 
       {/* Miniaturas */}
-      <div className="flex gap-2">
-        {vistas.map((vista, i) => (
-          <button
-            key={i}
-            onClick={() => onSeleccionar(i)}
-            className={`w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded border-2 bg-mekra-black/5 flex items-center justify-center overflow-hidden transition-all duration-150 ${
-              imagenActiva === i
-                ? 'border-mekra-orange'
-                : 'border-transparent hover:border-mekra-orange/40'
-            }`}
-            aria-label={`Vista ${i + 1}`}
-          >
-            {tieneImagenesReales
-              ? <img src={vista} alt="" className="w-full h-full object-cover" />
-              : <IconCuboPequeno />
-            }
-          </button>
-        ))}
-      </div>
+      {total > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {fotos.map((foto, i) => (
+            <button
+              key={i}
+              onClick={() => setActiva(i)}
+              aria-label={`Ver foto ${i + 1}`}
+              className={`w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded overflow-hidden border-2 transition-all duration-150 ${
+                activa === i
+                  ? 'border-mekra-orange scale-[0.97]'
+                  : 'border-transparent opacity-60 hover:opacity-100 hover:border-mekra-orange/40'
+              }`}
+            >
+              <img src={foto} alt="" className="w-full h-full object-cover" draggable={false} />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
