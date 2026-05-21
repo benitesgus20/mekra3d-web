@@ -264,6 +264,7 @@ export default function CartDrawer() {
                   href={waUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={limpiarTodo}
                   className="flex items-center justify-center gap-2 w-full py-4 bg-mekra-orange text-white font-black uppercase tracking-widest text-sm rounded transition-all duration-200 hover:brightness-110"
                 >
                   <IconWhatsApp />
