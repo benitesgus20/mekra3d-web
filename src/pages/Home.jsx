@@ -4,10 +4,6 @@ import { productos } from '../data'
 import { useCart } from '../context/CartContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
-const WA_COTIZACION = `https://wa.me/51922372823?text=${encodeURIComponent(
-  'Hola, soy empresa/colegio y me interesa una cotización especial con Mekra3D 🏢'
-)}`
-
 const PASOS = [
   { emoji: '📐', titulo: 'Diseño',             desc: 'Adaptamos o creamos tu modelo 3D a medida.' },
   { emoji: '🖨️', titulo: 'Impresión',          desc: 'Producimos con impresora Bambu Lab de alta precisión.' },
@@ -37,8 +33,8 @@ export default function Home() {
     <>
       <Hero />
       <BarraConfianza />
-      <DosCaminos />
-      <SeccionDestacados />
+      <SeccionMasVendidos />
+      <SeccionNovedades />
       <SeccionSobre />
       <SeccionFAQ />
     </>
@@ -145,91 +141,63 @@ function BarraConfianza() {
   )
 }
 
-// ── 3. DOS CAMINOS ─────────────────────────────────────────────────
+// ── 3. MÁS VENDIDOS ────────────────────────────────────────────────
 
-function DosCaminos() {
+function SeccionMasVendidos() {
+  const { addItem } = useCart()
+
+  // Priorizar productos con fotos
+  const masVendidos = [...productos.filter(p => p.activo)]
+    .sort((a, b) => (b.fotos.length > 0 ? 1 : 0) - (a.fotos.length > 0 ? 1 : 0))
+    .slice(0, 4)
+
   return (
-    <section className="bg-mekra-white py-20 sm:py-24">
+    <section className="bg-mekra-white py-16 sm:py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-        <div className="text-center mb-12">
-          <h2 className="text-2xl sm:text-3xl font-black text-mekra-black uppercase tracking-tight">
-            ¿Qué estás buscando?
+        <div className="flex items-end justify-between mb-8">
+          <h2 className="text-xl sm:text-2xl font-black text-mekra-black uppercase tracking-tight">
+            Más vendidos
           </h2>
+          <Link
+            to="/catalogo"
+            className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-mekra-black/30 hover:text-mekra-orange transition-colors duration-200"
+          >
+            Ver todos <IconFlecha size={11} />
+          </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl mx-auto">
-
-          {/* Tarjeta: Quiero regalar */}
-          <div className="group flex flex-col gap-5 p-8 border border-mekra-black/10 rounded-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-mekra-black/8 hover:border-mekra-orange/30">
-            <span className="text-4xl">🎁</span>
-            <div>
-              <h3 className="text-lg font-black text-mekra-black uppercase tracking-tight mb-2">
-                Quiero regalar
-              </h3>
-              <p className="text-mekra-black/50 text-sm leading-relaxed">
-                Fechas especiales, detalles únicos, personalizados para quien más quieres.
-              </p>
-            </div>
-            <Link
-              to="/catalogo?categoria=personalizados"
-              className="mt-auto inline-flex items-center gap-2 px-5 py-3 border-2 border-mekra-orange text-mekra-orange font-black uppercase tracking-widest text-xs rounded transition-all duration-200 hover:bg-mekra-orange hover:text-white w-fit"
-            >
-              Ver regalos
-              <IconFlecha size={12} />
-            </Link>
-          </div>
-
-          {/* Tarjeta: Soy empresa */}
-          <div className="group flex flex-col gap-5 p-8 border border-mekra-black/10 rounded-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-mekra-black/8 hover:border-mekra-black/30">
-            <span className="text-4xl">🏢</span>
-            <div>
-              <h3 className="text-lg font-black text-mekra-black uppercase tracking-tight mb-2">
-                Soy empresa o colegio
-              </h3>
-              <p className="text-mekra-black/50 text-sm leading-relaxed">
-                Pedidos por volumen, personalización con logo, cotización especial.
-              </p>
-            </div>
-            <a
-              href={WA_COTIZACION}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-auto inline-flex items-center gap-2 px-5 py-3 border-2 border-mekra-black text-mekra-black font-black uppercase tracking-widest text-xs rounded transition-all duration-200 hover:bg-mekra-black hover:text-white w-fit"
-            >
-              Solicitar cotización
-              <IconFlecha size={12} />
-            </a>
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          {masVendidos.map(producto => (
+            <CardProducto
+              key={producto.id}
+              producto={producto}
+              dark={false}
+              onAgregar={() => addItem(producto, 1, producto.colores[0] ?? '')}
+            />
+          ))}
         </div>
       </div>
     </section>
   )
 }
 
-// ── 4. PRODUCTOS DESTACADOS ────────────────────────────────────────
+// ── 4. NOVEDADES ───────────────────────────────────────────────────
 
-function SeccionDestacados() {
+function SeccionNovedades() {
   const { addItem } = useCart()
 
-  // Los que tengan fotos primero, luego tomar 4
-  const destacados = [...productos.filter(p => p.activo)]
-    .sort((a, b) => (b.fotos.length > 0 ? 1 : 0) - (a.fotos.length > 0 ? 1 : 0))
-    .slice(0, 4)
+  // Últimos 4 productos del catálogo (los más recientes)
+  const novedades = [...productos.filter(p => p.activo)].slice(-4).reverse()
 
   return (
-    <section className="bg-mekra-black py-20 sm:py-24">
+    <section className="bg-mekra-black py-16 sm:py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-        <div className="flex items-end justify-between mb-10">
-          <div>
-            <p className="text-mekra-orange text-[10px] font-black uppercase tracking-widest mb-1">
-              Esta semana
-            </p>
-            <h2 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight leading-none">
-              Lo más pedido
-            </h2>
-          </div>
+        <div className="flex items-end justify-between mb-8">
+          <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
+            Novedades
+          </h2>
           <Link
             to="/catalogo"
             className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/30 hover:text-mekra-orange transition-colors duration-200"
@@ -239,10 +207,11 @@ function SeccionDestacados() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          {destacados.map(producto => (
+          {novedades.map(producto => (
             <CardProducto
               key={producto.id}
               producto={producto}
+              dark={true}
               onAgregar={() => addItem(producto, 1, producto.colores[0] ?? '')}
             />
           ))}
@@ -409,33 +378,42 @@ function ItemFAQ({ faq, abierto, onToggle }) {
 
 // ── CARD DE PRODUCTO ───────────────────────────────────────────────
 
-function CardProducto({ producto, onAgregar }) {
+function CardProducto({ producto, onAgregar, dark = true }) {
   const navigate = useNavigate()
+
+  const wrapperCls = dark
+    ? 'bg-mekra-dark border-white/8 hover:shadow-black/30 hover:border-mekra-orange/30'
+    : 'bg-white border-mekra-black/10 hover:shadow-mekra-black/8 hover:border-mekra-orange/30'
+
+  const imgBgCls  = dark ? 'bg-white/5'              : 'bg-mekra-black/4'
+  const catCls    = 'text-mekra-orange'
+  const nameCls   = dark ? 'text-white'               : 'text-mekra-black'
+  const priceCls  = 'text-mekra-orange'
 
   return (
     <article
       onClick={() => navigate(`/producto/${producto.id}`)}
-      className="group flex flex-col bg-mekra-dark border border-white/8 rounded overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/30 hover:border-mekra-orange/30 cursor-pointer"
+      className={`group flex flex-col border rounded overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg cursor-pointer ${wrapperCls}`}
     >
-      <div className="aspect-square bg-white/5 flex items-center justify-center overflow-hidden">
+      <div className={`aspect-square flex items-center justify-center overflow-hidden ${imgBgCls}`}>
         {producto.fotos?.length > 0
           ? <img
               src={producto.fotos[0]}
               alt={producto.nombre}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
-          : <IconCubo />
+          : <IconCubo dark={dark} />
         }
       </div>
       <div className="flex flex-col flex-1 p-3">
-        <span className="text-mekra-orange text-[9px] sm:text-[10px] font-bold uppercase tracking-widest leading-none">
+        <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-widest leading-none ${catCls}`}>
           {producto.categoria}
         </span>
-        <h3 className="text-white font-black text-xs sm:text-sm mt-1 mb-2 leading-tight line-clamp-2 flex-1">
+        <h3 className={`font-black text-xs sm:text-sm mt-1 mb-2 leading-tight line-clamp-2 flex-1 ${nameCls}`}>
           {producto.nombre}
         </h3>
         <div className="flex items-center justify-between gap-1 mt-auto">
-          <span className="text-mekra-orange font-black text-sm sm:text-base">
+          <span className={`font-black text-sm sm:text-base ${priceCls}`}>
             {producto.precio > 0 ? `S/${producto.precio}` : 'Consultar'}
           </span>
           <button
@@ -469,9 +447,9 @@ function IconChevron() {
   )
 }
 
-function IconCubo() {
+function IconCubo({ dark = true }) {
   return (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.75" strokeLinecap="round" strokeLinejoin="round" className="text-white/20" aria-hidden>
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.75" strokeLinecap="round" strokeLinejoin="round" className={dark ? 'text-white/20' : 'text-mekra-black/20'} aria-hidden>
       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
       <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
       <line x1="12" y1="22.08" x2="12" y2="12" />
