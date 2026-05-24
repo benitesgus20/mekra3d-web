@@ -50,7 +50,7 @@ export default function Home() {
 function Hero() {
   return (
     <section className="bg-mekra-black">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24 lg:py-28">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-[60px]">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
           {/* Texto */}
@@ -60,12 +60,12 @@ function Hero() {
               Trujillo, Perú
             </p>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black text-white leading-[1.1] tracking-tight mb-5">
+            <h1 className="text-[48px] font-black text-white leading-[1.1] tracking-tight mb-5">
               Creamos lo que<br />
               <span className="text-mekra-orange">imaginas.</span>
             </h1>
 
-            <p className="text-white/55 text-base sm:text-lg leading-relaxed mb-10 max-w-md">
+            <p className="text-white/55 text-[14px] leading-relaxed mb-6 max-w-md">
               Piezas únicas hechas a pedido en Trujillo, Perú.
               Impresión 3D de alta calidad para tu hogar, empresa o colección.
             </p>
@@ -91,15 +91,15 @@ function Hero() {
 
 function HeroVisual() {
   return (
-    <div className="relative w-80 h-80 xl:w-96 xl:h-96">
+    <div className="relative w-40 h-40 xl:w-48 xl:h-48">
       {/* Círculos concéntricos decorativos */}
       <div className="absolute inset-0 rounded-full border border-white/5" />
-      <div className="absolute inset-8 rounded-full border border-white/8" />
-      <div className="absolute inset-16 rounded-full border border-mekra-orange/20" />
+      <div className="absolute inset-4 rounded-full border border-white/8" />
+      <div className="absolute inset-8 rounded-full border border-mekra-orange/20" />
 
       {/* Cubo wireframe centrado */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" aria-hidden>
+        <svg width="60" height="60" viewBox="0 0 120 120" fill="none" aria-hidden>
           {/* Cara frontal */}
           <rect x="30" y="50" width="60" height="60" stroke="#FF6B00" strokeWidth="1.5" strokeOpacity="0.7" />
           {/* Cara superior */}
@@ -114,9 +114,9 @@ function HeroVisual() {
       </div>
 
       {/* Puntos orbitales */}
-      <div className="absolute top-6 right-10 w-2 h-2 rounded-full bg-mekra-orange opacity-60" />
-      <div className="absolute bottom-10 left-6 w-1.5 h-1.5 rounded-full bg-mekra-orange opacity-40" />
-      <div className="absolute top-1/2 right-2 w-1 h-1 rounded-full bg-white opacity-30" />
+      <div className="absolute top-3 right-5 w-1.5 h-1.5 rounded-full bg-mekra-orange opacity-60" />
+      <div className="absolute bottom-5 left-3 w-1 h-1 rounded-full bg-mekra-orange opacity-40" />
+      <div className="absolute top-1/2 right-1 w-1 h-1 rounded-full bg-white opacity-30" />
     </div>
   )
 }
