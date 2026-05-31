@@ -4,6 +4,7 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from '@studio-freight/lenis'
 import { productos, siteInfo } from '../data'
+import { useCart } from '../context/CartContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -36,7 +37,7 @@ function obtenerHistoria(p) {
 
   const overrides = {
     'llavero-fotografico': {
-      hero: { sub: 'Llavero personalizado con tu foto' },
+      hero: { sub: 'Llavero personalizado con tu foto', precioTexto: 'S/25 – S/35' },
       apertura: {
         titulo: 'Personalizado con su foto',
         sub: 'Cada detalle hecho a mano en Trujillo',
@@ -212,7 +213,7 @@ function HistoriaAnimada({ producto, historia }) {
             {historia.hero.sub}
           </p>
           <p className="hero-in mt-6">
-            <PrecioEtiqueta producto={producto} />
+            <PrecioEtiqueta producto={producto} texto={historia.hero.precioTexto} />
           </p>
         </CapaEscena>
 
@@ -262,7 +263,7 @@ function HistoriaEstatica({ producto, historia }) {
               ? <h1 className="mt-4 text-4xl sm:text-5xl font-black leading-tight tracking-tight">{e.titulo}</h1>
               : <h2 className="mt-4 text-3xl sm:text-4xl font-black leading-tight tracking-tight">{e.titulo}</h2>}
             <p className="mt-3 text-base sm:text-lg text-white/70 leading-relaxed">{e.sub}</p>
-            {e.hero && <p className="mt-5 flex justify-center"><PrecioEtiqueta producto={producto} /></p>}
+            {e.hero && <p className="mt-5 flex justify-center"><PrecioEtiqueta producto={producto} texto={historia.hero.precioTexto} /></p>}
           </div>
         ))}
       </div>
@@ -275,6 +276,7 @@ function HistoriaEstatica({ producto, historia }) {
 function Especificaciones({ producto }) {
   const filas = [
     { etiqueta: 'Material', valor: producto.material || '—' },
+    { etiqueta: 'Medidas', valor: producto.medidas || '—' },
     { etiqueta: 'Peso', valor: producto.peso || '—' },
     { etiqueta: 'Tiempo de fabricación', valor: producto.tiempo_fabricacion || 'A consultar' },
     { etiqueta: 'Estilo', valor: producto.estilo || '—' },
@@ -316,12 +318,20 @@ function Especificaciones({ producto }) {
 // ── SECCIÓN 5 — CTA FINAL ──────────────────────────────────────────
 
 function CtaFinal({ producto, historia }) {
+  const { addItem, setIsOpen } = useCart()
+  const [color, setColor] = useState(producto.colores[0] ?? null)
   const dias = diasRestantes()
   const mensaje = encodeURIComponent(
     `Hola! Me interesa "${producto.nombre}" de Mekra3D. ¿Pueden ayudarme? 🧡`
   )
   const waHref = `https://wa.me/${siteInfo.whatsapp}?text=${mensaje}`
   const mostrarUrgencia = historia.cta.conUrgencia && dias > 0
+  const seVende = producto.precio > 0
+
+  function agregarAlCarrito() {
+    addItem(producto, 1, color)
+    setIsOpen(true)
+  }
 
   return (
     <section className="bg-mekra-orange px-6 py-24 sm:py-32">
@@ -330,15 +340,44 @@ function CtaFinal({ producto, historia }) {
           {historia.cta.titulo}
         </h2>
 
-        <a
-          href={waHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-10 inline-flex w-full sm:w-auto items-center justify-center gap-3 px-10 py-5 bg-mekra-white text-mekra-black font-black uppercase tracking-widest text-sm sm:text-base rounded transition-all duration-200 hover:scale-[1.02] active:scale-[0.99] shadow-xl shadow-mekra-black/15"
-        >
-          <IconWhatsApp />
-          Pedir por WhatsApp
-        </a>
+        {/* Selector de color — solo si el producto tiene variantes */}
+        {producto.colores.length > 0 && (
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+            {producto.colores.map((c) => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded border-2 transition-all duration-150 ${
+                  color === c
+                    ? 'bg-mekra-black border-mekra-black text-mekra-white'
+                    : 'border-mekra-black/30 text-mekra-black hover:border-mekra-black'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+          {seVende && (
+            <button
+              onClick={agregarAlCarrito}
+              className="inline-flex items-center justify-center gap-2 px-10 py-5 bg-mekra-black text-mekra-white font-black uppercase tracking-widest text-sm sm:text-base rounded transition-all duration-200 hover:scale-[1.02] active:scale-[0.99]"
+            >
+              Agregar al carrito
+            </button>
+          )}
+          <a
+            href={waHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-3 px-10 py-5 bg-mekra-white text-mekra-black font-black uppercase tracking-widest text-sm sm:text-base rounded transition-all duration-200 hover:scale-[1.02] active:scale-[0.99] shadow-xl shadow-mekra-black/15"
+          >
+            <IconWhatsApp />
+            Pedir por WhatsApp
+          </a>
+        </div>
 
         {mostrarUrgencia && (
           <p className="mt-8 inline-block px-4 py-2 bg-mekra-black text-mekra-white text-xs sm:text-sm font-black uppercase tracking-widest rounded-full">
@@ -364,7 +403,14 @@ function CapaEscena({ innerRef, className = '', children }) {
   )
 }
 
-function PrecioEtiqueta({ producto }) {
+function PrecioEtiqueta({ producto, texto }) {
+  if (texto) {
+    return (
+      <span className="text-3xl sm:text-4xl font-black text-mekra-orange leading-none">
+        {texto}
+      </span>
+    )
+  }
   if (producto.precio > 0) {
     return (
       <span className="text-3xl sm:text-4xl font-black text-mekra-orange leading-none tabular-nums">

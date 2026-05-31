@@ -454,6 +454,7 @@ export const productos = [
     estilo: 'Clásico',
     material: 'PLA',
     peso: '30g',
+    medidas: '13x9 cm',
     tiempo_fabricacion: '2 horas',
     precio: 18,
     colores: [],
