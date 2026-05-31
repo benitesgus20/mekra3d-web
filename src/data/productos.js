@@ -456,7 +456,7 @@ export const productos = [
     peso: '30g',
     medidas: '13x9 cm',
     tiempo_fabricacion: '2 horas',
-    precio: 18,
+    precio: 9,
     colores: [],
     fotos: [],
     descripcion: '',

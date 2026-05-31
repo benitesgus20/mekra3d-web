@@ -37,7 +37,7 @@ function obtenerHistoria(p) {
 
   const overrides = {
     'llavero-fotografico': {
-      hero: { sub: 'Llavero personalizado con tu foto', precioTexto: 'S/25 – S/35' },
+      hero: { sub: 'Llavero personalizado con tu foto' },
       apertura: {
         titulo: 'Personalizado con su foto',
         sub: 'Cada detalle hecho a mano en Trujillo',
