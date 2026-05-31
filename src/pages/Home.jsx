@@ -1,16 +1,18 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react'
-import { preload } from 'react-dom'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import Lenis from '@studio-freight/lenis'
-import { productos } from '../data'
-import { useCart } from '../context/CartContext'
+import { useState, useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { productos, siteInfo } from '../data'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import camaraCerrada from '../assets/hero-camara-cerrada.png'
-import camaraAbierta from '../assets/hero-camara-abierta.png'
 
-gsap.registerPlugin(ScrollTrigger)
+const WA_PEDIR = `https://wa.me/${siteInfo.whatsapp}?text=${encodeURIComponent(
+  'Hola! Quiero hacer un pedido en Mekra3D para el Día del Padre. ¿Me ayudan? 🧡'
+)}`
+
+const OCASIONES = [
+  { emoji: '👨',          nombre: 'Papá',     to: '/papa' },
+  { emoji: '💞',          nombre: 'Parejas',  to: '/parejas' },
+  { emoji: '🧑‍🤝‍🧑',  nombre: 'Hermanos', to: '/hermanos' },
+  { emoji: '🤝',          nombre: 'Amigos',   to: '/amigos' },
+]
 
 const PASOS = [
   { emoji: '📐', titulo: 'Diseño',             desc: 'Adaptamos o creamos tu modelo 3D a medida.' },
@@ -27,6 +29,12 @@ const FAQS_HOME = [
   { pregunta: '¿Tienen garantía?',                     respuesta: 'Sí, si el producto llega con defecto de impresión lo reemplazamos sin costo.' },
 ]
 
+function waPedido(nombre) {
+  return `https://wa.me/${siteInfo.whatsapp}?text=${encodeURIComponent(
+    `Hola! Me interesa "${nombre}" de Mekra3D. ¿Pueden ayudarme? 🧡`
+  )}`
+}
+
 export default function Home() {
   useDocumentTitle()
   const location = useLocation()
@@ -37,276 +45,135 @@ export default function Home() {
     if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 80)
   }, [location.hash])
 
+  const destacados = productos.filter(p => p.activo).slice(0, 3)
+
   return (
     <>
-      <Hero />
-      <BarraConfianza />
-      <SeccionMasVendidos />
-      <SeccionNovedades />
+      <SeccionEvento />
+      <SeccionDestacados items={destacados} />
+      <SeccionOcasion />
       <SeccionSobre />
       <SeccionFAQ />
     </>
   )
 }
 
-// ── 1. HERO ────────────────────────────────────────────────────────
+// ── SECCIÓN 1 — EVENTO (Día del Padre) ─────────────────────────────
 
-function Hero() {
-  // Precarga de imágenes en el <head> con alta prioridad (React 19)
-  preload(camaraCerrada, { as: 'image', fetchPriority: 'high' })
-  preload(camaraAbierta, { as: 'image', fetchPriority: 'high' })
+function SeccionEvento() {
+  return (
+    <section className="bg-mekra-white min-h-[calc(100dvh-4rem)] flex flex-col items-center justify-center text-center px-6 py-14 sm:py-16">
+      <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-mekra-black/40 mb-5">
+        Hasta el 15 de junio
+      </p>
+      <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-mekra-black tracking-tight leading-[1.02] text-balance">
+        Día del Padre 2026
+      </h1>
+      <p className="mt-5 text-lg sm:text-xl text-mekra-black/55 max-w-xl">
+        El regalo que nunca olvidará
+      </p>
 
-  const sectionRef = useRef(null)
-  const cerradaRef = useRef(null)
-  const abiertaRef = useRef(null)
-  const camScrollRef = useRef(null)    // parallax de scroll (translateY)
-  const camMouseRef = useRef(null)     // parallax de mouse (translate3d)
-  const giantScrollRef = useRef(null)  // texto gigante: parallax de scroll
-  const giantMouseRef = useRef(null)   // texto gigante: parallax de mouse opuesto
+      <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <Link
+          to="/#destacados"
+          className="inline-flex items-center justify-center px-8 py-4 bg-mekra-black text-mekra-white font-bold rounded-full text-sm transition-all duration-200 hover:scale-[1.03] active:scale-[0.99]"
+        >
+          Ver regalos
+        </Link>
+        <a
+          href={WA_PEDIR}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 px-8 py-4 border-2 border-mekra-black text-mekra-black font-bold rounded-full text-sm transition-all duration-200 hover:bg-mekra-black hover:text-mekra-white"
+        >
+          <IconWhatsApp />
+          Pedir ahora
+        </a>
+      </div>
 
-  useLayoutEffect(() => {
-    const section = sectionRef.current
-    if (!section) return
+      {/* Imagen del producto (placeholder por ahora) */}
+      <div className="mt-12 sm:mt-16 w-full max-w-3xl">
+        <div className="aspect-[4/3] sm:aspect-[16/10] rounded-3xl bg-mekra-black flex items-center justify-center px-6">
+          <span className="text-mekra-white font-black text-2xl sm:text-4xl tracking-tight text-center text-balance">
+            Llavero Cámara Papá
+          </span>
+        </div>
+      </div>
+    </section>
+  )
+}
 
-    // Smooth scrolling con Lenis, sincronizado al ticker de GSAP
-    const lenis = new Lenis({
-      duration: 1.4,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smooth: true,
-    })
-    lenis.on('scroll', ScrollTrigger.update)
-    const raf = (time) => lenis.raf(time * 1000)
-    gsap.ticker.add(raf)
-    gsap.ticker.lagSmoothing(0)
+// ── SECCIÓN 2 — DESTACADOS (grid asimétrico) ───────────────────────
 
-    let rafId
-    const ctx = gsap.context(() => {
-      const sinMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-      // Accesibilidad: con prefers-reduced-motion mostramos la cámara abierta estática
-      if (sinMovimiento) {
-        gsap.set(cerradaRef.current, { autoAlpha: 0 })
-        gsap.set(abiertaRef.current, { autoAlpha: 1, scale: 1, rotation: 0 })
-        gsap.set(camScrollRef.current, { y: 0 })
-        return
-      }
-
-      // Entrada stagger del texto izquierdo (translateX, fromTo para fijar estado final)
-      gsap.fromTo('.hero-stagger',
-        { opacity: 0, x: -20 },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 0.8,
-          ease: 'power2.out',
-          stagger: 0.2,
-          delay: 0.15,
-          clearProps: 'opacity,transform',
-        }
-      )
-
-      // Estados iniciales (inicio de la Fase 1)
-      gsap.set(camScrollRef.current, { y: 60 })
-      gsap.set(cerradaRef.current, { opacity: 0.6, scale: 0.85, rotation: -3 })
-      gsap.set(abiertaRef.current, { opacity: 0, scale: 1.03 })
-
-      // Timeline scroll-driven, scrub suave. En móvil la apertura es más rápida
-      // (ocupa menos scroll y responde más ágil).
-      const esMovil = window.matchMedia('(max-width: 768px)').matches
-      const tl = gsap.timeline({
-        defaults: { ease: 'none' },
-        scrollTrigger: {
-          trigger: section,
-          start: 'top top',
-          end: esMovil ? 'center top' : 'bottom top',
-          scrub: esMovil ? 1 : 1.5,
-        },
-      })
-
-      tl
-        // ── Fase 1 (0 → 40%): la cámara cerrada entra desde abajo y se asienta
-        .to(camScrollRef.current, { y: 0, duration: 0.4, ease: 'power2.out' }, 0)
-        .to(cerradaRef.current, { opacity: 1, scale: 1, rotation: 0, duration: 0.4, ease: 'power2.out' }, 0)
-        // ── Fase 2 (40 → 70%): crossfade muy suave de cerrada a abierta (30% del scroll)
-        .to(cerradaRef.current, { opacity: 0, scale: 1.03, duration: 0.3, ease: 'power1.inOut' }, 0.4)
-        .to(abiertaRef.current, { opacity: 1, scale: 1, duration: 0.3, ease: 'power1.inOut' }, 0.4)
-        // ── Fase 3 (70 → 100%): parallax suave; el texto gigante se mueve en sentido opuesto
-        .to(camScrollRef.current, { y: -20, duration: 0.3, ease: 'power1.inOut' }, 0.7)
-        .to(giantScrollRef.current, { y: 20, duration: 0.3, ease: 'power1.inOut' }, 0.7)
-
-      // ── Parallax de mouse (solo desktop) con lerp suave vía requestAnimationFrame
-      if (window.matchMedia('(min-width: 769px)').matches) {
-        let targetX = 0, targetY = 0
-        let camX = 0, camY = 0, txtX = 0, txtY = 0
-        const onMove = (e) => {
-          targetX = (e.clientX / window.innerWidth - 0.5) * 2   // -1 .. 1
-          targetY = (e.clientY / window.innerHeight - 0.5) * 2
-        }
-        const loop = () => {
-          camX += (targetX * 10 - camX) * 0.1
-          camY += (targetY * 10 - camY) * 0.1
-          txtX += (targetX * -5 - txtX) * 0.1
-          txtY += (targetY * -5 - txtY) * 0.1
-          if (camMouseRef.current) camMouseRef.current.style.transform = `translate3d(${camX}px, ${camY}px, 0)`
-          if (giantMouseRef.current) giantMouseRef.current.style.transform = `translate3d(${txtX}px, ${txtY}px, 0)`
-          rafId = requestAnimationFrame(loop)
-        }
-        window.addEventListener('mousemove', onMove)
-        rafId = requestAnimationFrame(loop)
-
-        return () => window.removeEventListener('mousemove', onMove)
-      }
-    }, section)
-
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId)
-      ctx.revert()
-      gsap.ticker.remove(raf)
-      lenis.destroy()
-    }
-  }, [])
+function SeccionDestacados({ items }) {
+  if (items.length === 0) return null
+  const [grande, ...resto] = items
 
   return (
-    <section
-      ref={sectionRef}
-      className="relative bg-mekra-white overflow-hidden min-h-screen flex items-center"
-    >
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-0">
-        <div className="grid grid-cols-1 md:grid-cols-[35%_65%] items-center gap-10 md:gap-0">
+    <section id="destacados" className="bg-mekra-white py-16 sm:py-24 scroll-mt-20">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 className="text-center text-3xl sm:text-4xl font-black text-mekra-black tracking-tight mb-10 sm:mb-14">
+          Destacados
+        </h2>
 
-          {/* ZONA IZQUIERDA — texto (en móvil va arriba, centrado) */}
-          <div className="text-center md:text-left">
-            <span className="hero-stagger inline-block px-3 py-1.5 bg-mekra-orange text-white text-[10px] sm:text-xs font-black uppercase tracking-widest rounded">
-              Día del Padre 2026
-            </span>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 sm:gap-6">
+          <CardDestacada producto={grande} grande className="lg:col-span-3" />
+          <div className="lg:col-span-2 flex flex-col gap-5 sm:gap-6">
+            {resto.map(p => <CardDestacada key={p.id} producto={p} />)}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
 
-            <h1 className="hero-stagger text-[40px] sm:text-5xl lg:text-6xl font-black text-mekra-black leading-[1.05] tracking-tight mt-5 mb-4">
-              El regalo que<br />nunca olvidará
-            </h1>
+function CardDestacada({ producto, grande = false, className = '' }) {
+  return (
+    <article className={`group flex flex-col bg-mekra-white rounded-2xl overflow-hidden border border-mekra-black/[0.06] transition-all duration-200 hover:shadow-xl hover:shadow-mekra-black/[0.06] hover:scale-[1.02] ${className}`}>
+      <Link to={`/producto/${producto.id}`} className={grande ? 'block flex-1 min-h-[240px]' : 'block'}>
+        <div className={`bg-[#F5F5F7] flex items-center justify-center overflow-hidden ${grande ? 'h-full min-h-[240px]' : 'aspect-[16/10]'}`}>
+          <IconCubo size={grande ? 84 : 48} />
+        </div>
+      </Link>
+      <div className={`flex flex-col gap-2.5 ${grande ? 'px-7 pb-7 pt-4' : 'px-5 pb-5 pt-3'}`}>
+        <h3 className={`text-mekra-black font-black tracking-tight ${grande ? 'text-2xl sm:text-3xl' : 'text-lg'}`}>
+          {producto.nombre}
+        </h3>
+        <div className="flex items-center gap-5 text-sm">
+          <Link to={`/producto/${producto.id}`} className="font-bold text-mekra-black hover:text-mekra-orange transition-colors duration-150">
+            Ver más ›
+          </Link>
+          <a href={waPedido(producto.nombre)} target="_blank" rel="noopener noreferrer" className="font-bold text-mekra-orange hover:opacity-70 transition-opacity duration-150">
+            Pedir ›
+          </a>
+        </div>
+      </div>
+    </article>
+  )
+}
 
-            <p className="hero-stagger text-mekra-black/55 text-sm sm:text-base leading-relaxed mb-8 max-w-md mx-auto md:mx-0">
-              Personalizado con su foto · Hecho en Trujillo
-            </p>
+// ── SECCIÓN 3 — POR OCASIÓN ────────────────────────────────────────
 
+function SeccionOcasion() {
+  return (
+    <section className="bg-mekra-white py-16 sm:py-24 border-t border-mekra-black/[0.06]">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 className="text-center text-3xl sm:text-4xl font-black text-mekra-black tracking-tight mb-10 sm:mb-14">
+          ¿Para quién es el regalo?
+        </h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          {OCASIONES.map(o => (
             <Link
-              to="/catalogo?categoria=personalizados"
-              className="hero-stagger inline-flex w-full md:w-auto items-center justify-center md:justify-start gap-2.5 px-8 py-4 bg-mekra-orange text-white font-black uppercase tracking-widest text-sm rounded transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+              key={o.to}
+              to={o.to}
+              className="group flex flex-col items-center text-center gap-3 rounded-2xl border border-mekra-black/10 bg-mekra-white px-6 py-8 sm:py-10 transition-all duration-200 hover:border-mekra-black/25 hover:shadow-lg hover:shadow-mekra-black/[0.05] hover:scale-[1.02]"
             >
-              Ver regalos para papá
-              <IconFlecha />
+              <span className="text-4xl sm:text-5xl leading-none">{o.emoji}</span>
+              <span className="text-mekra-black font-black text-base sm:text-lg">{o.nombre}</span>
+              <span className="text-mekra-orange font-bold text-sm group-hover:opacity-70 transition-opacity duration-150">
+                Ver regalos ›
+              </span>
             </Link>
-          </div>
-
-          {/* ZONA DERECHA — escenario: texto gigante + cámara solapados (en móvil va abajo) */}
-          <div className="relative flex items-center justify-center min-h-[55vh] md:min-h-[70vh]">
-
-            {/* Texto gigante de fondo, integrado con la cámara (decorativo) */}
-            <div
-              ref={giantScrollRef}
-              className="absolute inset-0 z-0 flex flex-col justify-center pointer-events-none select-none"
-              aria-hidden
-            >
-              <div ref={giantMouseRef}>
-                <span className="block w-full text-left font-black text-mekra-black leading-[0.82] tracking-tighter whitespace-nowrap text-[22vw] md:text-[15vw] opacity-[0.06] md:opacity-[0.08]">
-                  EL MEJOR
-                </span>
-                <span className="block w-full text-right font-black text-mekra-black leading-[0.82] tracking-tighter whitespace-nowrap text-[22vw] md:text-[15vw] opacity-[0.06] md:opacity-[0.08]">
-                  PAPÁ
-                </span>
-              </div>
-            </div>
-
-            {/* Cámara: flota encima del texto, sin caja ni sombra */}
-            <div
-              ref={camScrollRef}
-              className="camara-wrapper relative z-10 will-change-[transform,opacity]"
-            >
-              <div ref={camMouseRef}>
-                <div className="animate-mekra-float relative">
-                  <img
-                    ref={cerradaRef}
-                    src={camaraCerrada}
-                    alt="Llavero cámara personalizado para papá"
-                    loading="eager"
-                    fetchPriority="high"
-                    className="block w-[70vw] max-w-[420px] h-auto md:w-auto md:h-[55vh] md:max-w-none"
-                  />
-                  <img
-                    ref={abiertaRef}
-                    src={camaraAbierta}
-                    alt="Llavero cámara abierto mostrando la foto de papá"
-                    loading="eager"
-                    fetchPriority="high"
-                    className="absolute inset-0 w-full h-full object-contain"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── 2. BARRA DE CONFIANZA ──────────────────────────────────────────
-
-function BarraConfianza() {
-  const datos = [
-    '25+ Productos',
-    'Envíos a todo el Perú',
-    'Hecho a pedido',
-  ]
-
-  return (
-    <div className="bg-mekra-orange">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-0 divide-y sm:divide-y-0 sm:divide-x divide-white/25">
-          {datos.map((dato, i) => (
-            <span key={i} className="w-full sm:w-auto text-center px-6 py-1 text-white text-sm font-black uppercase tracking-widest">
-              {dato}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── 3. MÁS VENDIDOS ────────────────────────────────────────────────
-
-function SeccionMasVendidos() {
-  const { addItem } = useCart()
-
-  // Priorizar productos con fotos
-  const masVendidos = [...productos.filter(p => p.activo)]
-    .sort((a, b) => (b.fotos.length > 0 ? 1 : 0) - (a.fotos.length > 0 ? 1 : 0))
-    .slice(0, 4)
-
-  return (
-    <section className="bg-mekra-white py-16 sm:py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-        <div className="flex items-end justify-between mb-8">
-          <h2 className="text-xl sm:text-2xl font-black text-mekra-black uppercase tracking-tight">
-            Más vendidos
-          </h2>
-          <Link
-            to="/catalogo"
-            className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-mekra-black/30 hover:text-mekra-orange transition-colors duration-200"
-          >
-            Ver todos <IconFlecha size={11} />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          {masVendidos.map(producto => (
-            <CardProducto
-              key={producto.id}
-              producto={producto}
-              dark={false}
-              onAgregar={() => addItem(producto, 1, producto.colores[0] ?? '')}
-            />
           ))}
         </div>
       </div>
@@ -314,62 +181,12 @@ function SeccionMasVendidos() {
   )
 }
 
-// ── 4. NOVEDADES ───────────────────────────────────────────────────
-
-function SeccionNovedades() {
-  const { addItem } = useCart()
-
-  // Últimos 4 productos del catálogo (los más recientes)
-  const novedades = [...productos.filter(p => p.activo)].slice(-4).reverse()
-
-  return (
-    <section className="bg-mekra-black py-16 sm:py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-        <div className="flex items-end justify-between mb-8">
-          <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
-            Novedades
-          </h2>
-          <Link
-            to="/catalogo"
-            className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/30 hover:text-mekra-orange transition-colors duration-200"
-          >
-            Ver todos <IconFlecha size={11} />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          {novedades.map(producto => (
-            <CardProducto
-              key={producto.id}
-              producto={producto}
-              dark={true}
-              onAgregar={() => addItem(producto, 1, producto.colores[0] ?? '')}
-            />
-          ))}
-        </div>
-
-        {/* Ver todos — solo móvil */}
-        <div className="sm:hidden text-center mt-8">
-          <Link
-            to="/catalogo"
-            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/30 hover:text-mekra-orange transition-colors duration-200"
-          >
-            Ver todos los productos <IconFlecha size={11} />
-          </Link>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── 5. SOBRE MEKRA3D ──────────────────────────────────────────────
+// ── SECCIÓN — SOBRE MEKRA3D ────────────────────────────────────────
 
 function SeccionSobre() {
   return (
-    <section id="sobre" className="bg-mekra-white py-20 sm:py-24 scroll-mt-20 border-t border-mekra-black/8">
+    <section id="sobre" className="bg-mekra-white py-20 sm:py-24 scroll-mt-20 border-t border-mekra-black/[0.06]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
         <div className="text-center mb-12 sm:mb-16">
           <p className="text-mekra-orange text-[10px] font-black uppercase tracking-widest mb-3">
             Nuestra historia
@@ -378,14 +195,14 @@ function SeccionSobre() {
             ¿Quiénes somos?
           </h2>
           <p className="text-mekra-black/55 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
-            Somos un emprendimiento trujillano fundado por un ingeniero mecánico apasionado
-            por la fabricación digital. Con nuestra impresora{' '}
-            <strong className="text-mekra-black font-black">Bambu Lab</strong> producimos
-            piezas únicas, personalizadas y de alta calidad para hogares, empresas y coleccionistas.
+            Somos un emprendimiento trujillano fundado por un ingeniero mecánico apasionado por
+            la fabricación digital. Con nuestra impresora{' '}
+            <strong className="text-mekra-black font-black">Bambu Lab</strong> producimos piezas
+            únicas, personalizadas y de alta calidad.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 mb-12 sm:mb-16">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5">
           {PASOS.map((paso, i) => (
             <div
               key={i}
@@ -404,39 +221,12 @@ function SeccionSobre() {
             </div>
           ))}
         </div>
-
-        {/* Laboon */}
-        <div className="bg-pink-50 border border-pink-100 rounded-xl overflow-hidden">
-          <div className="px-6 sm:px-10 py-8 sm:py-10 flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-10">
-            <div className="flex-1 text-center sm:text-left">
-              <span className="text-pink-400 text-[10px] font-black uppercase tracking-widest">
-                Línea especial
-              </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-mekra-black mt-1 mb-3 tracking-tight">
-                LABOON 💄
-              </h3>
-              <p className="text-mekra-black/60 text-sm leading-relaxed max-w-md mx-auto sm:mx-0">
-                Nuestra línea femenina, creada con amor. Accesorios, pulseras y objetos
-                únicos para la mujer moderna que busca diferenciarse.
-              </p>
-            </div>
-            <div className="shrink-0">
-              <Link
-                to="/catalogo?categoria=mujer"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-pink-400 hover:bg-pink-500 text-white font-black uppercase tracking-widest text-xs rounded transition-all duration-200"
-              >
-                Ver colección
-                <IconFlecha />
-              </Link>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   )
 }
 
-// ── 6. FAQ PREVIEW ─────────────────────────────────────────────────
+// ── SECCIÓN — FAQ ──────────────────────────────────────────────────
 
 function SeccionFAQ() {
   const [abierto, setAbierto] = useState(null)
@@ -444,7 +234,6 @@ function SeccionFAQ() {
   return (
     <section id="faq" className="bg-mekra-black py-20 sm:py-24 scroll-mt-20">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-
         <div className="text-center mb-10">
           <p className="text-mekra-orange text-[10px] font-black uppercase tracking-widest mb-3">
             Soporte
@@ -460,7 +249,7 @@ function SeccionFAQ() {
               key={i}
               faq={faq}
               abierto={abierto === i}
-              onToggle={() => setAbierto(prev => prev === i ? null : i)}
+              onToggle={() => setAbierto(prev => (prev === i ? null : i))}
             />
           ))}
         </div>
@@ -470,15 +259,13 @@ function SeccionFAQ() {
             to="/faq"
             className="inline-flex items-center gap-2 text-xs font-bold text-white/40 hover:text-mekra-orange uppercase tracking-widest transition-colors duration-150"
           >
-            Ver todas las preguntas <IconFlecha size={12} />
+            Ver todas las preguntas <span aria-hidden>›</span>
           </Link>
         </div>
       </div>
     </section>
   )
 }
-
-// ── ACORDEÓN FAQ ───────────────────────────────────────────────────
 
 function ItemFAQ({ faq, abierto, onToggle }) {
   return (
@@ -490,9 +277,7 @@ function ItemFAQ({ faq, abierto, onToggle }) {
         aria-expanded={abierto}
         className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
       >
-        <span className={`text-sm font-bold leading-snug transition-colors duration-200 ${
-          abierto ? 'text-white' : 'text-white/75'
-        }`}>
+        <span className={`text-sm font-bold leading-snug transition-colors duration-200 ${abierto ? 'text-white' : 'text-white/75'}`}>
           {faq.pregunta}
         </span>
         <span className={`shrink-0 text-mekra-orange transition-transform duration-300 ${abierto ? 'rotate-180' : ''}`} aria-hidden>
@@ -500,73 +285,20 @@ function ItemFAQ({ faq, abierto, onToggle }) {
         </span>
       </button>
       <div className={`overflow-hidden transition-all duration-300 ease-in-out ${abierto ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
-        <p className="px-5 pb-5 text-sm text-white/45 leading-relaxed">
-          {faq.respuesta}
-        </p>
+        <p className="px-5 pb-5 text-sm text-white/45 leading-relaxed">{faq.respuesta}</p>
       </div>
     </div>
   )
 }
 
-// ── CARD DE PRODUCTO ───────────────────────────────────────────────
+// ── ÍCONOS ─────────────────────────────────────────────────────────
 
-function CardProducto({ producto, onAgregar, dark = true }) {
-  const navigate = useNavigate()
-
-  const wrapperCls = dark
-    ? 'bg-mekra-dark border-white/8 hover:shadow-black/30 hover:border-mekra-orange/30'
-    : 'bg-white border-mekra-black/10 hover:shadow-mekra-black/8 hover:border-mekra-orange/30'
-
-  const imgBgCls  = dark ? 'bg-white/5'              : 'bg-mekra-black/4'
-  const catCls    = 'text-mekra-orange'
-  const nameCls   = dark ? 'text-white'               : 'text-mekra-black'
-  const priceCls  = 'text-mekra-orange'
-
+function IconCubo({ size = 52 }) {
   return (
-    <article
-      onClick={() => navigate(`/producto/${producto.id}`)}
-      className={`group flex flex-col border rounded overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg cursor-pointer ${wrapperCls}`}
-    >
-      <div className={`aspect-square flex items-center justify-center overflow-hidden ${imgBgCls}`}>
-        {producto.fotos?.length > 0
-          ? <img
-              src={producto.fotos[0]}
-              alt={producto.nombre}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-          : <IconCubo dark={dark} />
-        }
-      </div>
-      <div className="flex flex-col flex-1 p-3">
-        <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-widest leading-none ${catCls}`}>
-          {producto.categoria}
-        </span>
-        <h3 className={`font-black text-xs sm:text-sm mt-1 mb-2 leading-tight line-clamp-2 flex-1 ${nameCls}`}>
-          {producto.nombre}
-        </h3>
-        <div className="flex items-center justify-between gap-1 mt-auto">
-          <span className={`font-black text-sm sm:text-base ${priceCls}`}>
-            {producto.precio > 0 ? `S/${producto.precio}` : 'Consultar'}
-          </span>
-          <button
-            onClick={e => { e.stopPropagation(); onAgregar() }}
-            className="px-2.5 py-1.5 bg-mekra-orange text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded transition-all duration-200 hover:brightness-110 active:scale-95 whitespace-nowrap"
-          >
-            + Agregar
-          </button>
-        </div>
-      </div>
-    </article>
-  )
-}
-
-// ── ÍCONOS SVG ─────────────────────────────────────────────────────
-
-function IconFlecha({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" strokeLinejoin="round" className="text-mekra-black/15" aria-hidden>
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
     </svg>
   )
 }
@@ -579,19 +311,9 @@ function IconChevron() {
   )
 }
 
-function IconCubo({ dark = true }) {
-  return (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.75" strokeLinecap="round" strokeLinejoin="round" className={dark ? 'text-white/20' : 'text-mekra-black/20'} aria-hidden>
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-      <line x1="12" y1="22.08" x2="12" y2="12" />
-    </svg>
-  )
-}
-
 function IconWhatsApp() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
     </svg>
   )

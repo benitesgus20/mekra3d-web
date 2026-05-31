@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+
+const LINKS = [
+  { label: 'Destacados',  to: '/#destacados', home: true },
+  { label: 'Papá',        to: '/papa' },
+  { label: 'Parejas',     to: '/parejas' },
+  { label: 'Hermanos',    to: '/hermanos' },
+  { label: 'Amigos',      to: '/amigos' },
+  { label: 'Corporativo', to: '/corporativo' },
+]
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -8,93 +17,78 @@ export default function Navbar() {
   const menuRef = useRef(null)
   const location = useLocation()
 
-  // Cerrar menú al cambiar de ruta (botón atrás incluido)
-  useEffect(() => {
-    setMobileOpen(false)
-  }, [location.pathname])
-
-  // Cerrar al hacer clic fuera
   useEffect(() => {
     function onOutsideClick(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMobileOpen(false)
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMobileOpen(false)
     }
     if (mobileOpen) document.addEventListener('mousedown', onOutsideClick)
     return () => document.removeEventListener('mousedown', onOutsideClick)
   }, [mobileOpen])
 
-  // Cerrar con Escape
   useEffect(() => {
     const onEsc = e => { if (e.key === 'Escape') setMobileOpen(false) }
     document.addEventListener('keydown', onEsc)
     return () => document.removeEventListener('keydown', onEsc)
   }, [])
 
-  const desktopLink = ({ isActive }) =>
-    `text-sm font-bold uppercase tracking-widest transition-colors duration-150 ${
-      isActive ? 'text-mekra-orange' : 'text-white hover:text-mekra-orange'
-    }`
-
-  const mobileLink = ({ isActive }) =>
-    `block py-3 px-2 text-base font-bold uppercase tracking-widest border-b border-white/10 transition-colors ${
-      isActive ? 'text-mekra-orange' : 'text-white hover:text-mekra-orange'
-    }`
-
-  // Links de ancla (no necesitan estado activo)
-  const hashDesktop = 'text-sm font-bold uppercase tracking-widest transition-colors duration-150 text-white hover:text-mekra-orange'
-  const hashMobile  = 'block py-3 px-2 text-base font-bold uppercase tracking-widest border-b border-white/10 transition-colors text-white hover:text-mekra-orange'
+  const esActivo = (link) => link.home ? location.pathname === '/' : location.pathname === link.to
 
   return (
-    <nav ref={menuRef} className="fixed top-0 left-0 right-0 z-50 bg-mekra-black shadow-lg">
+    <nav ref={menuRef} className="fixed top-0 left-0 right-0 z-50 bg-mekra-white border-b border-mekra-black/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link to="/" className="flex-shrink-0 select-none">
-            <span className="text-white font-black text-2xl tracking-tight leading-none">
+          <Link to="/" className="shrink-0 select-none">
+            <span className="text-mekra-black font-black text-2xl tracking-tight leading-none">
               MEKRA<span className="text-mekra-orange">3D</span>
             </span>
           </Link>
 
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-7">
-            <NavLink to="/" end className={desktopLink}>Inicio</NavLink>
-            <NavLink to="/catalogo" className={desktopLink}>Catálogo</NavLink>
-            <Link to="/#sobre" className={hashDesktop}>Nosotros</Link>
-            <Link to="/#faq"   className={hashDesktop}>FAQ</Link>
-            <button
-              onClick={() => openCart(true)}
-              className="relative flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white hover:text-mekra-orange transition-colors duration-150"
-              aria-label={`Carrito, ${count} producto${count !== 1 ? 's' : ''}`}
-            >
-              <CartIcon />
-              <span>Carrito</span>
-              {count > 0 && (
-                <span className="absolute -top-2.5 -right-3 bg-mekra-orange text-white text-[10px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none tabular-nums">
-                  {count > 99 ? '99+' : count}
-                </span>
-              )}
-            </button>
+          <div className="hidden md:flex items-center h-16 gap-8">
+            {LINKS.map(link => {
+              const activo = esActivo(link)
+              return (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className={`h-16 flex items-center border-b-2 text-sm font-semibold tracking-wide transition-colors duration-150 ${
+                    activo
+                      ? 'border-mekra-black text-mekra-black'
+                      : 'border-transparent text-mekra-black/50 hover:text-mekra-black'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              )
+            })}
           </div>
 
-          {/* Mobile: cart badge + hamburger */}
+          {/* Desktop cart */}
+          <button
+            onClick={() => openCart(true)}
+            className="hidden md:flex relative items-center gap-2 text-sm font-semibold text-mekra-black hover:text-mekra-orange transition-colors duration-150"
+            aria-label={`Carrito, ${count} producto${count !== 1 ? 's' : ''}`}
+          >
+            <CartIcon />
+            <span>Carrito</span>
+            {count > 0 && <Badge count={count} className="-top-2 -right-3" />}
+          </button>
+
+          {/* Mobile: cart + hamburger */}
           <div className="flex md:hidden items-center gap-5">
             <button
               onClick={() => openCart(true)}
-              className="relative text-white hover:text-mekra-orange transition-colors"
+              className="relative text-mekra-black hover:text-mekra-orange transition-colors"
               aria-label="Carrito"
             >
               <CartIcon />
-              {count > 0 && (
-                <span className="absolute -top-2 -right-2 bg-mekra-orange text-white text-[10px] font-black rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5 leading-none tabular-nums">
-                  {count > 99 ? '99+' : count}
-                </span>
-              )}
+              {count > 0 && <Badge count={count} className="-top-2 -right-2" />}
             </button>
             <button
               onClick={() => setMobileOpen(o => !o)}
-              className="text-white hover:text-mekra-orange transition-colors p-1"
+              className="text-mekra-black hover:text-mekra-orange transition-colors p-1"
               aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
               aria-expanded={mobileOpen}
             >
@@ -106,31 +100,34 @@ export default function Navbar() {
 
       {/* Mobile dropdown */}
       <div
-        className={`md:hidden bg-mekra-dark overflow-hidden transition-all duration-300 ease-in-out ${
-          mobileOpen ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
+        className={`md:hidden bg-mekra-white border-t border-mekra-black/10 overflow-hidden transition-all duration-300 ease-in-out ${
+          mobileOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
         <div className="px-6 pt-2 pb-4 flex flex-col">
-          <NavLink to="/" end className={mobileLink} onClick={() => setMobileOpen(false)}>
-            Inicio
-          </NavLink>
-          <NavLink to="/catalogo" className={mobileLink} onClick={() => setMobileOpen(false)}>
-            Catálogo
-          </NavLink>
-          <Link to="/#sobre" className={hashMobile} onClick={() => setMobileOpen(false)}>
-            Nosotros
-          </Link>
-          <Link to="/#faq" className={hashMobile} onClick={() => setMobileOpen(false)}>
-            FAQ
-          </Link>
+          {LINKS.map(link => {
+            const activo = esActivo(link)
+            return (
+              <Link
+                key={link.to}
+                to={link.to}
+                onClick={() => setMobileOpen(false)}
+                className={`py-3 px-2 text-base font-semibold border-b border-mekra-black/8 transition-colors ${
+                  activo ? 'text-mekra-black' : 'text-mekra-black/55 hover:text-mekra-black'
+                }`}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
           <button
             onClick={() => { openCart(true); setMobileOpen(false) }}
-            className="flex items-center gap-2 py-3 px-2 text-base font-bold uppercase tracking-widest text-white hover:text-mekra-orange transition-colors text-left"
+            className="flex items-center gap-2 py-3 px-2 text-base font-semibold text-mekra-black hover:text-mekra-orange transition-colors text-left"
           >
             <CartIcon />
             Carrito
             {count > 0 && (
-              <span className="ml-1 bg-mekra-orange text-white text-[10px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none">
+              <span className="ml-1 bg-mekra-orange text-mekra-white text-[10px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none">
                 {count}
               </span>
             )}
@@ -138,6 +135,14 @@ export default function Navbar() {
         </div>
       </div>
     </nav>
+  )
+}
+
+function Badge({ count, className = '' }) {
+  return (
+    <span className={`absolute bg-mekra-orange text-mekra-white text-[10px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none tabular-nums ${className}`}>
+      {count > 99 ? '99+' : count}
+    </span>
   )
 }
 

@@ -18,6 +18,11 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/catalogo" element={<Catalogo />} />
+          <Route path="/papa" element={<Catalogo />} />
+          <Route path="/parejas" element={<Catalogo />} />
+          <Route path="/hermanos" element={<Catalogo />} />
+          <Route path="/amigos" element={<Catalogo />} />
+          <Route path="/corporativo" element={<Catalogo />} />
           <Route path="/producto/:id" element={<ProductoDetalle />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="*" element={<NotFound />} />
