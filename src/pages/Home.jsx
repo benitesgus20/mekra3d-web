@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { preload } from 'react-dom'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -51,120 +52,114 @@ export default function Home() {
 // ── 1. HERO ────────────────────────────────────────────────────────
 
 function Hero() {
+  // Precarga de imágenes en el <head> con alta prioridad (React 19)
+  preload(camaraCerrada, { as: 'image', fetchPriority: 'high' })
+  preload(camaraAbierta, { as: 'image', fetchPriority: 'high' })
+
   const sectionRef = useRef(null)
   const cerradaRef = useRef(null)
   const abiertaRef = useRef(null)
-  const camaraRef = useRef(null)   // parallax de scroll (translateY)
-  const mouseRef = useRef(null)    // parallax de mouse (x/y)
-  const floatRef = useRef(null)    // flotación pasiva (translateY)
-  const giantRef = useRef(null)    // contenedor del texto gigante (parallax)
-  const papaRef = useRef(null)
-  const heroeRef = useRef(null)
-  const mekraRef = useRef(null)
+  const camScrollRef = useRef(null)    // parallax de scroll (translateY)
+  const camMouseRef = useRef(null)     // parallax de mouse (translate3d)
+  const giantScrollRef = useRef(null)  // texto gigante: parallax de scroll
+  const giantMouseRef = useRef(null)   // texto gigante: parallax de mouse opuesto
 
   useLayoutEffect(() => {
     const section = sectionRef.current
     if (!section) return
 
     // Smooth scrolling con Lenis, sincronizado al ticker de GSAP
-    const lenis = new Lenis({ duration: 1.2, smooth: true })
+    const lenis = new Lenis({
+      duration: 1.4,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smooth: true,
+    })
     lenis.on('scroll', ScrollTrigger.update)
     const raf = (time) => lenis.raf(time * 1000)
     gsap.ticker.add(raf)
     gsap.ticker.lagSmoothing(0)
 
+    let rafId
     const ctx = gsap.context(() => {
       const sinMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-      // Accesibilidad: si el usuario prefiere menos movimiento, mostrar cámara abierta estática
+      // Accesibilidad: con prefers-reduced-motion mostramos la cámara abierta estática
       if (sinMovimiento) {
         gsap.set(cerradaRef.current, { autoAlpha: 0 })
-        gsap.set(abiertaRef.current, { autoAlpha: 1, scale: 1 })
+        gsap.set(abiertaRef.current, { autoAlpha: 1, scale: 1, rotation: 0 })
+        gsap.set(camScrollRef.current, { y: 0 })
         return
       }
 
-      // Entrada con stagger: badge → título → subtítulo → botón.
-      // Usamos fromTo (no from) para fijar el estado final explícito y evitar
-      // que el doble montaje de StrictMode deje algún elemento en opacity 0.
+      // Entrada stagger del texto izquierdo (translateX, fromTo para fijar estado final)
       gsap.fromTo('.hero-stagger',
-        { opacity: 0, y: 30 },
+        { opacity: 0, x: -20 },
         {
           opacity: 1,
-          y: 0,
-          duration: 0.7,
+          x: 0,
+          duration: 0.8,
           ease: 'power2.out',
-          stagger: 0.15,
-          delay: 0.1,
+          stagger: 0.2,
+          delay: 0.15,
           clearProps: 'opacity,transform',
         }
       )
 
-      // Estado inicial de la cámara
-      gsap.set(cerradaRef.current, { opacity: 1, scale: 1 })
-      gsap.set(abiertaRef.current, { opacity: 0, scale: 0.95 })
+      // Estados iniciales (inicio de la Fase 1)
+      gsap.set(camScrollRef.current, { y: 60 })
+      gsap.set(cerradaRef.current, { opacity: 0.6, scale: 0.85, rotation: -3 })
+      gsap.set(abiertaRef.current, { opacity: 0, scale: 1.03 })
 
-      // Timeline scroll-driven (0% → 100% del scroll del hero)
+      // Timeline scroll-driven, scrub suave. En móvil la apertura es más rápida
+      // (ocupa menos scroll y responde más ágil).
+      const esMovil = window.matchMedia('(max-width: 768px)').matches
       const tl = gsap.timeline({
         defaults: { ease: 'none' },
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: 'bottom top',
-          scrub: true,
+          end: esMovil ? 'center top' : 'bottom top',
+          scrub: esMovil ? 1 : 1.5,
         },
       })
 
       tl
-        // 0 → 30%: crossfade de cámara cerrada a abierta
-        .to(cerradaRef.current, { opacity: 0, scale: 1.05, duration: 0.3 }, 0)
-        .to(abiertaRef.current, { opacity: 1, scale: 1, duration: 0.3 }, 0)
-        // 30 → 100%: parallax suave de la cámara abierta
-        .to(camaraRef.current, { y: -30, duration: 0.7 }, 0.3)
-        // texto gigante: parallax vertical durante todo el scroll
-        .to(giantRef.current, { y: -100, duration: 1 }, 0)
-        // ~50%: PAPÁ → HÉROE
-        .to(papaRef.current, { opacity: 0, duration: 0.12 }, 0.44)
-        .to(heroeRef.current, { opacity: 0.05, duration: 0.12 }, 0.44)
-        // ~100%: HÉROE → MEKRA3D
-        .to(heroeRef.current, { opacity: 0, duration: 0.12 }, 0.88)
-        .to(mekraRef.current, { opacity: 0.05, duration: 0.12 }, 0.88)
+        // ── Fase 1 (0 → 40%): la cámara cerrada entra desde abajo y se asienta
+        .to(camScrollRef.current, { y: 0, duration: 0.4, ease: 'power2.out' }, 0)
+        .to(cerradaRef.current, { opacity: 1, scale: 1, rotation: 0, duration: 0.4, ease: 'power2.out' }, 0)
+        // ── Fase 2 (40 → 70%): crossfade muy suave de cerrada a abierta (30% del scroll)
+        .to(cerradaRef.current, { opacity: 0, scale: 1.03, duration: 0.3, ease: 'power1.inOut' }, 0.4)
+        .to(abiertaRef.current, { opacity: 1, scale: 1, duration: 0.3, ease: 'power1.inOut' }, 0.4)
+        // ── Fase 3 (70 → 100%): parallax suave; el texto gigante se mueve en sentido opuesto
+        .to(camScrollRef.current, { y: -20, duration: 0.3, ease: 'power1.inOut' }, 0.7)
+        .to(giantScrollRef.current, { y: 20, duration: 0.3, ease: 'power1.inOut' }, 0.7)
 
-      // Flotación pasiva sobre un wrapper independiente (no choca con los parallax)
-      const floatTween = gsap.fromTo(
-        floatRef.current,
-        { y: -8 },
-        { y: 8, duration: 4, ease: 'sine.inOut', yoyo: true, repeat: -1 }
-      )
-
-      // Pausar la flotación mientras hay scroll activo
-      let scrollTimeout
-      lenis.on('scroll', () => {
-        floatTween.pause()
-        clearTimeout(scrollTimeout)
-        scrollTimeout = setTimeout(() => floatTween.resume(), 150)
-      })
-
-      // Parallax de mouse (±12px), solo desktop
-      let onMove
+      // ── Parallax de mouse (solo desktop) con lerp suave vía requestAnimationFrame
       if (window.matchMedia('(min-width: 769px)').matches) {
-        const xTo = gsap.quickTo(mouseRef.current, 'x', { duration: 0.6, ease: 'power3' })
-        const yTo = gsap.quickTo(mouseRef.current, 'y', { duration: 0.6, ease: 'power3' })
-        onMove = (e) => {
-          const dx = (e.clientX - window.innerWidth / 2) / (window.innerWidth / 2)
-          const dy = (e.clientY - window.innerHeight / 2) / (window.innerHeight / 2)
-          xTo(dx * 12)
-          yTo(dy * 12)
+        let targetX = 0, targetY = 0
+        let camX = 0, camY = 0, txtX = 0, txtY = 0
+        const onMove = (e) => {
+          targetX = (e.clientX / window.innerWidth - 0.5) * 2   // -1 .. 1
+          targetY = (e.clientY / window.innerHeight - 0.5) * 2
+        }
+        const loop = () => {
+          camX += (targetX * 10 - camX) * 0.1
+          camY += (targetY * 10 - camY) * 0.1
+          txtX += (targetX * -5 - txtX) * 0.1
+          txtY += (targetY * -5 - txtY) * 0.1
+          if (camMouseRef.current) camMouseRef.current.style.transform = `translate3d(${camX}px, ${camY}px, 0)`
+          if (giantMouseRef.current) giantMouseRef.current.style.transform = `translate3d(${txtX}px, ${txtY}px, 0)`
+          rafId = requestAnimationFrame(loop)
         }
         window.addEventListener('mousemove', onMove)
-      }
+        rafId = requestAnimationFrame(loop)
 
-      return () => {
-        if (onMove) window.removeEventListener('mousemove', onMove)
-        clearTimeout(scrollTimeout)
+        return () => window.removeEventListener('mousemove', onMove)
       }
     }, section)
 
     return () => {
+      if (rafId) cancelAnimationFrame(rafId)
       ctx.revert()
       gsap.ticker.remove(raf)
       lenis.destroy()
@@ -177,9 +172,9 @@ function Hero() {
       className="relative bg-mekra-white overflow-hidden min-h-screen flex items-center"
     >
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-0">
-        <div className="grid grid-cols-1 md:grid-cols-[40%_60%] items-center gap-10 md:gap-0">
+        <div className="grid grid-cols-1 md:grid-cols-[35%_65%] items-center gap-10 md:gap-0">
 
-          {/* ZONA IZQUIERDA — texto (en móvil va arriba) */}
+          {/* ZONA IZQUIERDA — texto (en móvil va arriba, centrado) */}
           <div className="text-center md:text-left">
             <span className="hero-stagger inline-block px-3 py-1.5 bg-mekra-orange text-white text-[10px] sm:text-xs font-black uppercase tracking-widest rounded">
               Día del Padre 2026
@@ -195,50 +190,54 @@ function Hero() {
 
             <Link
               to="/catalogo?categoria=personalizados"
-              className="hero-stagger inline-flex items-center gap-2.5 px-8 py-4 bg-mekra-orange text-white font-black uppercase tracking-widest text-sm rounded transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+              className="hero-stagger inline-flex w-full md:w-auto items-center justify-center md:justify-start gap-2.5 px-8 py-4 bg-mekra-orange text-white font-black uppercase tracking-widest text-sm rounded transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
             >
               Ver regalos para papá
               <IconFlecha />
             </Link>
           </div>
 
-          {/* ZONA DERECHA — texto gigante + cámara (en móvil va abajo) */}
-          <div className="relative flex items-center justify-center min-h-[300px] md:min-h-[460px]">
+          {/* ZONA DERECHA — escenario: texto gigante + cámara solapados (en móvil va abajo) */}
+          <div className="relative flex items-center justify-center min-h-[55vh] md:min-h-[70vh]">
 
-            {/* Texto gigante de fondo (z-1) */}
+            {/* Texto gigante de fondo, integrado con la cámara (decorativo) */}
             <div
-              ref={giantRef}
-              className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[1]"
+              ref={giantScrollRef}
+              className="absolute inset-0 z-0 flex flex-col justify-center pointer-events-none select-none"
               aria-hidden
             >
-              <span ref={papaRef} className="absolute font-black text-mekra-black leading-none whitespace-nowrap text-[32vw] md:text-[22vw] opacity-5">
-                PAPÁ
-              </span>
-              <span ref={heroeRef} className="absolute font-black text-mekra-black leading-none whitespace-nowrap text-[32vw] md:text-[22vw] opacity-0">
-                HÉROE
-              </span>
-              <span ref={mekraRef} className="absolute font-black text-mekra-black leading-none whitespace-nowrap text-[26vw] md:text-[18vw] opacity-0">
-                MEKRA3D
-              </span>
+              <div ref={giantMouseRef}>
+                <span className="block w-full text-left font-black text-mekra-black leading-[0.82] tracking-tighter whitespace-nowrap text-[22vw] md:text-[15vw] opacity-[0.06] md:opacity-[0.08]">
+                  EL MEJOR
+                </span>
+                <span className="block w-full text-right font-black text-mekra-black leading-[0.82] tracking-tighter whitespace-nowrap text-[22vw] md:text-[15vw] opacity-[0.06] md:opacity-[0.08]">
+                  PAPÁ
+                </span>
+              </div>
             </div>
 
-            {/* Cámara (z-2) */}
-            <div ref={camaraRef} className="camara-container relative z-[2] will-change-transform">
-              <div ref={mouseRef}>
-                <div ref={floatRef} className="relative">
+            {/* Cámara: flota encima del texto, sin caja ni sombra */}
+            <div
+              ref={camScrollRef}
+              className="camara-wrapper relative z-10 will-change-[transform,opacity]"
+            >
+              <div ref={camMouseRef}>
+                <div className="animate-mekra-float relative">
                   <img
                     ref={cerradaRef}
                     src={camaraCerrada}
                     alt="Llavero cámara personalizado para papá"
                     loading="eager"
-                    className="block h-[260px] md:h-[380px] w-auto drop-shadow-2xl"
+                    fetchPriority="high"
+                    className="block w-[70vw] max-w-[420px] h-auto md:w-auto md:h-[55vh] md:max-w-none"
                   />
                   <img
                     ref={abiertaRef}
                     src={camaraAbierta}
                     alt="Llavero cámara abierto mostrando la foto de papá"
                     loading="eager"
-                    className="absolute inset-0 h-[260px] md:h-[380px] w-auto drop-shadow-2xl"
+                    fetchPriority="high"
+                    className="absolute inset-0 w-full h-full object-contain"
                   />
                 </div>
               </div>

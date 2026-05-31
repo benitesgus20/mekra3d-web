@@ -7,6 +7,19 @@
   --color-mekra-dark: #111111;
 }
 
+/* Flotación sutil de la cámara del hero (cuando no hay scroll) */
+@keyframes mekra-float {
+  0%, 100% { transform: translate3d(0, -6px, 0); }
+  50%      { transform: translate3d(0, 6px, 0); }
+}
+.animate-mekra-float {
+  animation: mekra-float 5s ease-in-out infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-mekra-float { animation: none; }
+}
+
 /* Lenis — smooth scroll (evita conflicto con scroll-behavior nativo) */
 html.lenis,
 html.lenis body {
