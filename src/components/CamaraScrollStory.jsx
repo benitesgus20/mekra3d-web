@@ -1,11 +1,13 @@
 /**
- * CamaraScrollStory v2
- * Layout estilo Huawei Watch Fit 5 Pro:
- * - Izquierda 55 %: cámara full-height sin padding (img, no canvas)
- * - Derecha 45 %: título visible desde el inicio + textos que aparecen con scroll
- * - Timing comprimido: todo ocurre en el primer 60 % del scroll
- * - Frames bifásicos: 0→30 en 0-60 % / 30→49 en 60-100 %
- * - Scroll wrapper: 350 dvh
+ * CamaraScrollStory — optimizado para rendimiento
+ *
+ * Mejoras vs v2:
+ * - 25 frames (frames impares 001,003...049) → la mitad de assets
+ * - Preload completo con spinner hasta loaded===true
+ * - Canvas (no <img>) + ctx.drawImage directo (sin re-render React)
+ * - ResizeObserver sincroniza canvas buffer ↔ container + DPR
+ * - RAF debounce en el scroll handler para batching de draws
+ * - GSAP scrub reducido a 0.5 para respuesta más inmediata
  */
 
 import { useRef, useEffect, useLayoutEffect, useState } from 'react'
@@ -17,15 +19,16 @@ import { siteInfo } from '../data'
 
 gsap.registerPlugin(ScrollTrigger)
 
-// Ruta absoluta desde la raíz del proyecto — garantiza que Vite
-// resuelva correctamente los frames actualizados (035-050 incluidos)
-const frameModules = import.meta.glob(
-  '/src/assets/camara-frames/frame-*.png',
+// ── FRAMES: solo impares 001,003,005…049 = 25 imágenes ────────────
+// El character class [13579] en el glob hace que Vite solo importe
+// los frames con dígito final impar, reduciendo el bundle a la mitad.
+const _mods = import.meta.glob(
+  '/src/assets/camara-frames/frame-*[13579].png',
   { eager: true }
 )
-const FRAME_SRCS = Object.keys(frameModules)
+const FRAME_SRCS = Object.keys(_mods)
   .sort()
-  .map(key => frameModules[key].default)
+  .map(key => _mods[key].default)
 
 function waUrl(nombre) {
   return `https://wa.me/${siteInfo.whatsapp}?text=${encodeURIComponent(
@@ -49,115 +52,139 @@ export default function CamaraScrollStory({ producto }) {
 // ── ANIMADA ───────────────────────────────────────────────────────
 
 function CamaraAnimada({ producto }) {
-  const wrapperRef  = useRef(null)
-  const imgRef      = useRef(null)
-  const priceRef    = useRef(null)
-  const taglineRef  = useRef(null)
-  const subtitleRef = useRef(null)
-  const btnRef      = useRef(null)
-  const imagesRef   = useRef([])
-  const [cargado, setCargado] = useState(false)
+  const wrapperRef        = useRef(null)
+  const canvasRef         = useRef(null)
+  const containerRef      = useRef(null) // columna izquierda (ResizeObserver)
+  const priceRef          = useRef(null)
+  const taglineRef        = useRef(null)
+  const subtitleRef       = useRef(null)
+  const btnRef            = useRef(null)
+  const imgsRef           = useRef([])   // HTMLImageElement[] precargados
+  const currentIndexRef   = useRef(0)    // frame actual (mutable, sin re-render)
+  const rafIdRef          = useRef(null) // id del RAF pendiente
 
-  // Precarga de todos los frames con new Image()
+  // loaded: true cuando todos los frames han terminado de cargar
+  const [loaded, setLoaded] = useState(false)
+
+  // ── Precarga completa de los 25 frames ────────────────────────
   useEffect(() => {
-    const total = FRAME_SRCS.length
-    // setTimeout(0) evita el setState síncrono que viola las rules-of-hooks
-    if (total === 0) { setTimeout(() => setCargado(true), 0); return }
     let n = 0
     const imgs = FRAME_SRCS.map(src => {
       const img = new Image()
-      img.onload  = () => { if (++n === total) setCargado(true) }
-      img.onerror = () => { if (++n === total) setCargado(true) }
+      img.onload  = () => { n++; if (n === FRAME_SRCS.length) setLoaded(true) }
+      img.onerror = () => { n++; if (n === FRAME_SRCS.length) setLoaded(true) }
       img.src = src
       return img
     })
-    imagesRef.current = imgs
-    return () => { imagesRef.current = [] }
+    imgsRef.current = imgs
+    return () => { imgsRef.current = [] }
   }, [])
 
-  // GSAP + Lenis una vez que todos los frames cargaron
+  // ── Canvas + GSAP + Lenis — arranca solo cuando loaded===true ──
   useLayoutEffect(() => {
-    if (!cargado) return
-    const wrapper = wrapperRef.current
-    if (!wrapper) return
+    if (!loaded) return
+    const wrapper   = wrapperRef.current
+    const canvas    = canvasRef.current
+    const container = containerRef.current
+    if (!wrapper || !canvas || !container) return
 
+    const ctx  = canvas.getContext('2d')
+    const imgs = imgsRef.current
+    const dpr  = window.devicePixelRatio || 1
+
+    // Tamaño CSS del contenedor (actualizado por ResizeObserver)
+    const cssSz = { w: container.clientWidth, h: container.clientHeight }
+
+    // ── Dibuja el frame idx en el canvas ──────────────────────────
+    function drawFrame(idx) {
+      const img = imgs[Math.max(0, Math.min(idx, imgs.length - 1))]
+      if (!img?.complete || !cssSz.w || !cssSz.h) return
+      ctx.clearRect(0, 0, cssSz.w, cssSz.h)
+      ctx.drawImage(img, 0, 0, cssSz.w, cssSz.h)
+    }
+
+    // Inicializar canvas buffer con tamaño actual del contenedor
+    canvas.width  = Math.round(cssSz.w * dpr)
+    canvas.height = Math.round(cssSz.h * dpr)
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    drawFrame(0)
+
+    // ResizeObserver: re-dimensionar buffer y redibujar al cambiar el contenedor
+    const ro = new ResizeObserver(([entry]) => {
+      const { width: w, height: h } = entry.contentRect
+      cssSz.w = w
+      cssSz.h = h
+      canvas.width  = Math.round(w * dpr)
+      canvas.height = Math.round(h * dpr)
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      drawFrame(currentIndexRef.current)
+    })
+    ro.observe(container)
+
+    // ── Lenis smooth scroll ───────────────────────────────────────
     const lenis = new Lenis({
       duration: 1.4,
       easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smooth: true,
     })
     lenis.on('scroll', ScrollTrigger.update)
-    const raf = time => lenis.raf(time * 1000)
-    gsap.ticker.add(raf)
+    const lenisRaf = time => lenis.raf(time * 1000)
+    gsap.ticker.add(lenisRaf)
     gsap.ticker.lagSmoothing(0)
 
     const gCtx = gsap.context(() => {
-      // Precio, tagline, subtítulo y botón empiezan ocultos
-      // El TÍTULO NO se anima — ya viene visible en el JSX
-      gsap.set([priceRef.current, taglineRef.current, subtitleRef.current, btnRef.current],
+      // Textos: inician ocultos (título ya visible en JSX, no está aquí)
+      gsap.set(
+        [priceRef.current, taglineRef.current, subtitleRef.current, btnRef.current],
         { opacity: 0, y: 40 }
       )
 
-      // Timeline vinculada al scroll; total duration = 1 (normalizado)
+      // ── Frames: RAF-debounced scroll handler ──────────────────
+      // Captura progress en el momento del scroll event y
+      // batea el drawImage al siguiente frame disponible de la GPU
+      ScrollTrigger.create({
+        trigger: wrapper,
+        start: 'top top',
+        end:   'bottom bottom',
+        onUpdate(self) {
+          const progress = self.progress          // captura inmediata
+          if (rafIdRef.current) return            // ya hay un RAF pendiente
+          rafIdRef.current = requestAnimationFrame(() => {
+            const idx = Math.min(
+              Math.floor(progress * imgs.length),
+              imgs.length - 1
+            )
+            if (idx !== currentIndexRef.current) {
+              currentIndexRef.current = idx
+              drawFrame(idx)
+            }
+            rafIdRef.current = null
+          })
+        },
+      })
+
+      // ── Textos: timeline con scrub 0.5 (más inmediato) ────────
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: wrapper,
           start: 'top top',
           end:   'bottom bottom',
-          scrub: 1.5,
+          scrub: 0.5,
         },
       })
 
-      // ── Animación de frames via scrollProgress ─────────────────
-      // El scroll handler actualiza el frame directamente según el
-      // progreso (0→1) del ScrollTrigger, sin GSAP tweens intermedios
-      ScrollTrigger.create({
-        trigger: wrapper,
-        start: 'top top',
-        end:   'bottom bottom',
-        onUpdate: (self) => {
-          const index = Math.min(
-            Math.floor(self.progress * FRAME_SRCS.length),
-            FRAME_SRCS.length - 1
-          )
-          if (imgRef.current) imgRef.current.src = FRAME_SRCS[index]
-        },
-      })
-
-      // ── Textos: todo comprimido en el primer 60 % ──────────────
-      // Precio aparece al 15 %
       tl.fromTo(priceRef.current,
-        { opacity: 0, y: 40 },
-        { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' },
-        0.15
-      )
-      // Tagline al 30 %
+        { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' }, 0.15)
       tl.fromTo(taglineRef.current,
-        { opacity: 0, y: 40 },
-        { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' },
-        0.30
-      )
-      // Subtítulo al 45 %
+        { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' }, 0.30)
       tl.fromTo(subtitleRef.current,
-        { opacity: 0, y: 40 },
-        { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' },
-        0.45
-      )
-      // Botón al 60 %
+        { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' }, 0.45)
       tl.fromTo(btnRef.current,
-        { opacity: 0, y: 40 },
-        { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' },
-        0.60
-      )
-
-      // Sin este padding la duración implícita de la timeline sería 0.66
-      // (último tween en 0.60 + duration 0.06), lo que haría que el botón
-      // apareciera recién al 91 % del scroll (0.60 / 0.66 ≈ 0.91).
-      // Extendemos a 1.0 → botón al 60 %, frames 31-50 completan con
-      // todos los textos ya visibles.
+        { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' }, 0.60)
+      // Padding a duración total 1.0 (sin esto el botón aparece al 91%)
       tl.to({}, { duration: 0.34 }, 0.66)
 
-      // Reveals para las secciones que vienen debajo (ficha + CTA)
+      // Reveals de las secciones debajo (ficha + CTA)
       gsap.utils.toArray('.reveal-up').forEach(el => {
         gsap.fromTo(el,
           { opacity: 0, y: 28 },
@@ -170,11 +197,13 @@ function CamaraAnimada({ producto }) {
     }, wrapper)
 
     return () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current)
+      ro.disconnect()
       gCtx.revert()
-      gsap.ticker.remove(raf)
+      gsap.ticker.remove(lenisRaf)
       lenis.destroy()
     }
-  }, [cargado])
+  }, [loaded])
 
   const precio = producto.precio > 0 ? `S/${producto.precio}` : 'Consultar precio'
 
@@ -197,22 +226,38 @@ function CamaraAnimada({ producto }) {
       <div ref={wrapperRef} className="relative h-[350dvh]">
         <div className="sticky top-16 h-[calc(100dvh-4rem)] bg-mekra-white flex flex-col md:flex-row overflow-hidden">
 
-          {/* ── IZQUIERDA / ARRIBA — cámara full-height ────────── */}
-          <div className="h-[55dvh] md:h-full md:w-[55%] flex items-center justify-center overflow-hidden">
-            {/* Primer frame como src inicial; GSAP lo actualiza directamente */}
-            <img
-              ref={imgRef}
-              src={FRAME_SRCS[0] || ''}
-              alt={producto.nombre}
-              className={`h-full w-auto object-contain block select-none transition-opacity duration-500 ${cargado ? 'opacity-100' : 'opacity-0'}`}
-              draggable={false}
+          {/* ── IZQUIERDA / ARRIBA — canvas ──────────────────────── */}
+          <div
+            ref={containerRef}
+            className="relative h-[55dvh] md:h-full md:w-[55%] bg-mekra-white"
+          >
+            {/* Spinner mientras cargan los frames */}
+            {!loaded && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="w-10 h-10 rounded-full border-4 border-mekra-black/10 border-t-mekra-orange animate-spin" />
+              </div>
+            )}
+
+            {/* Canvas — siempre en el DOM para que el ref funcione */}
+            <canvas
+              ref={canvasRef}
+              style={{
+                display:         'block',
+                width:           '100%',
+                height:          '100%',
+                imageRendering:  'crisp-edges',
+                willChange:      'transform',
+                transform:       'translateZ(0)',
+                opacity:         loaded ? 1 : 0,
+                transition:      'opacity 0.4s ease',
+              }}
             />
           </div>
 
           {/* ── DERECHA / ABAJO — textos ─────────────────────────── */}
           <div className="flex-1 md:w-[45%] flex flex-col justify-center px-8 md:pl-10 md:pr-20 gap-5 md:gap-8">
 
-            {/* Título — VISIBLE DESDE EL INICIO, no animado */}
+            {/* Título — VISIBLE desde el inicio, sin animación GSAP */}
             <h1
               className="font-extrabold text-mekra-black leading-tight tracking-tight text-balance"
               style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)', fontWeight: 800 }}
@@ -220,7 +265,7 @@ function CamaraAnimada({ producto }) {
               {producto.nombre}
             </h1>
 
-            {/* Precio — aparece al 15 % */}
+            {/* Precio */}
             <p
               ref={priceRef}
               className="will-change-transform font-bold text-mekra-orange tabular-nums leading-none"
@@ -229,7 +274,7 @@ function CamaraAnimada({ producto }) {
               {precio}
             </p>
 
-            {/* Tagline — aparece al 30 % */}
+            {/* Tagline */}
             <p
               ref={taglineRef}
               className="will-change-transform font-black text-mekra-black leading-snug"
@@ -238,7 +283,7 @@ function CamaraAnimada({ producto }) {
               Personalizado con foto a elección
             </p>
 
-            {/* Subtítulo — aparece al 45 % */}
+            {/* Subtítulo */}
             <p
               ref={subtitleRef}
               className="will-change-transform leading-relaxed"
@@ -247,7 +292,7 @@ function CamaraAnimada({ producto }) {
               Envíanos la foto y nosotros hacemos el resto
             </p>
 
-            {/* Botón WhatsApp — aparece al 60 % */}
+            {/* Botón WhatsApp */}
             <a
               ref={btnRef}
               href={waUrl(producto.nombre)}
@@ -291,10 +336,12 @@ function CamaraEstatica({ producto }) {
             </div>
           )}
           <div className="flex-1 flex flex-col gap-5">
-            <h1 className="font-extrabold text-mekra-black tracking-tight leading-tight" style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)', fontWeight: 800 }}>
+            <h1 className="font-extrabold text-mekra-black tracking-tight leading-tight"
+              style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)', fontWeight: 800 }}>
               {producto.nombre}
             </h1>
-            <p className="font-bold text-mekra-orange" style={{ fontSize: 'clamp(2rem, 3vw, 3rem)' }}>
+            <p className="font-bold text-mekra-orange"
+              style={{ fontSize: 'clamp(2rem, 3vw, 3rem)' }}>
               {producto.precio > 0 ? `S/${producto.precio}` : 'Consultar precio'}
             </p>
             <p className="font-black text-mekra-black" style={{ fontSize: '1.4rem' }}>
@@ -323,7 +370,8 @@ function CamaraEstatica({ producto }) {
 
 function IconFlecha() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="rotate-180">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="rotate-180">
       <line x1="5" y1="12" x2="19" y2="12" />
       <polyline points="12 5 19 12 12 19" />
     </svg>
