@@ -1,4 +1,4 @@
-import { useState, useLayoutEffect, useRef } from 'react'
+import { useState, useLayoutEffect, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -9,6 +9,15 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 gsap.registerPlugin(ScrollTrigger)
 
+// Frames de la cámara — Vite resuelve el glob en build time
+const _framesRaw = import.meta.glob(
+  '../assets/camara-frames/frame-*.png',
+  { eager: true }
+)
+const FRAME_SRCS = Object.keys(_framesRaw)
+  .sort()
+  .map(k => _framesRaw[k].default)
+
 function prefiereSinMovimiento() {
   return typeof window !== 'undefined'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -17,18 +26,30 @@ function prefiereSinMovimiento() {
 export default function ProductoDetalle() {
   const { id } = useParams()
   const producto = productos.find(p => p.id === id)
-
   if (!producto) return <ProductoNoEncontrado />
   return <Detalle producto={producto} />
 }
 
-// ── CONTENEDOR PRINCIPAL ───────────────────────────────────────────
-// Plantilla única que se adapta a cualquier producto de productos.js.
+// ── ENRUTADOR DE PLANTILLAS ────────────────────────────────────────
 
 function Detalle({ producto }) {
   useDocumentTitle(producto.nombre)
   const [sinMovimiento] = useState(prefiereSinMovimiento)
 
+  // La cámara tiene su propia experiencia de scroll con frames
+  if (producto.id === 'llavero-camara-papa') {
+    return (
+      <main className="bg-mekra-white">
+        {sinMovimiento
+          ? <HeroCamaraEstatico producto={producto} />
+          : <HeroCamaraFrames producto={producto} />}
+        <Especificaciones producto={producto} />
+        <CtaFinal producto={producto} />
+      </main>
+    )
+  }
+
+  // Plantilla genérica oscura para el resto de productos
   return (
     <main className="bg-[#0A0A0A] text-mekra-white">
       {sinMovimiento
@@ -40,19 +61,255 @@ function Detalle({ producto }) {
   )
 }
 
-// ── STORYTELLING ANIMADO (Lenis + GSAP ScrollTrigger) ──────────────
+// ── CÁMARA — ANIMACIÓN FRAME BY FRAME ─────────────────────────────
+
+function HeroCamaraFrames({ producto }) {
+  // Si no hay frames, delegar al estático (sin hooks propios aquí)
+  if (FRAME_SRCS.length === 0) return <HeroCamaraEstatico producto={producto} />
+  return <HeroCamaraFramesInner producto={producto} />
+}
+
+function HeroCamaraFramesInner({ producto }) {
+  const wrapperRef  = useRef(null)
+  const canvasRef   = useRef(null)
+  const textRef     = useRef(null)
+  const subtextRef  = useRef(null)
+  const imagesRef   = useRef([])
+  const [cargado, setCargado] = useState(false)
+
+  // Precarga de los 50 frames + ajuste de dimensiones del canvas
+  useEffect(() => {
+    const total = FRAME_SRCS.length
+    let n = 0
+    let dimsListed = false
+
+    const imgs = FRAME_SRCS.map(src => {
+      const img = new Image()
+      img.onload = () => {
+        // Tomar dimensiones del primer frame cargado
+        if (!dimsListed && canvasRef.current) {
+          canvasRef.current.width  = img.naturalWidth
+          canvasRef.current.height = img.naturalHeight
+          dimsListed = true
+        }
+        if (++n === total) setCargado(true)
+      }
+      img.onerror = () => { if (++n === total) setCargado(true) }
+      img.src = src
+      return img
+    })
+
+    imagesRef.current = imgs
+    return () => { imagesRef.current = [] }
+  }, [])
+
+  // GSAP + Lenis — solo cuando todos los frames están cargados
+  useLayoutEffect(() => {
+    if (!cargado) return
+    const wrapper = wrapperRef.current
+    const canvas  = canvasRef.current
+    if (!wrapper || !canvas) return
+
+    // Garantizar dimensiones si el onload fue antes del mount
+    const first = imagesRef.current[0]
+    if (first?.naturalWidth && !canvas.width) {
+      canvas.width  = first.naturalWidth
+      canvas.height = first.naturalHeight
+    }
+
+    const ctx2d  = canvas.getContext('2d')
+    const imgs   = imagesRef.current
+    const total  = imgs.length
+
+    function drawFrame(raw) {
+      const i   = Math.max(0, Math.min(Math.round(raw), total - 1))
+      const img = imgs[i]
+      if (!img?.complete || !img.naturalWidth) return
+      ctx2d.clearRect(0, 0, canvas.width, canvas.height)
+      ctx2d.drawImage(img, 0, 0, canvas.width, canvas.height)
+    }
+    drawFrame(0)
+
+    const lenis = new Lenis({
+      duration: 1.4,
+      easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smooth: true,
+    })
+    lenis.on('scroll', ScrollTrigger.update)
+    const raf = time => lenis.raf(time * 1000)
+    gsap.ticker.add(raf)
+    gsap.ticker.lagSmoothing(0)
+
+    const gCtx = gsap.context(() => {
+      // Estado inicial del texto
+      gsap.set([textRef.current, subtextRef.current], { opacity: 0, y: 18 })
+
+      const frameObj = { n: 0 }
+
+      // Timeline principal vinculado al scroll del wrapper
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: wrapper,
+          start: 'top top',
+          end:   'bottom bottom',
+          scrub: 0.8,
+        },
+      })
+
+      // Frame 0 → 49 durante el scroll completo
+      tl.to(frameObj, {
+        n: total - 1,
+        ease: 'none',
+        duration: 1,
+        onUpdate: () => drawFrame(frameObj.n),
+      })
+
+      // Texto: entra en stagger suave al 60 % del scroll
+      tl.fromTo(textRef.current,
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.18, ease: 'power2.out' },
+        0.60
+      )
+      tl.fromTo(subtextRef.current,
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.18, ease: 'power2.out' },
+        0.67
+      )
+
+      // Reveals para especificaciones y CTA que vienen debajo
+      gsap.utils.toArray('.reveal-up').forEach(el => {
+        gsap.fromTo(el,
+          { opacity: 0, y: 28 },
+          {
+            opacity: 1, y: 0, duration: 0.7, ease: 'power3.out',
+            scrollTrigger: { trigger: el, start: 'top 85%', once: true },
+          }
+        )
+      })
+    }, wrapper)
+
+    return () => {
+      gCtx.revert()
+      gsap.ticker.remove(raf)
+      lenis.destroy()
+    }
+  }, [cargado])
+
+  return (
+    <section className="bg-mekra-white">
+      {/* Breadcrumb: fuera del pin zone */}
+      <div className="max-w-6xl mx-auto px-6 pt-6">
+        <Link
+          to="/catalogo"
+          className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-mekra-black/35 hover:text-mekra-orange transition-colors duration-150"
+        >
+          <IconFlecha izq />
+          Catálogo
+          <span className="text-mekra-black/20">/</span>
+          <span className="text-mekra-black/50">{producto.categoria}</span>
+        </Link>
+      </div>
+
+      {/*
+        Pin zone: wrapper 250dvh = 100dvh visible + 150dvh de recorrido
+        El div sticky ocupa el viewport mientras el wrapper se scrollea.
+      */}
+      <div ref={wrapperRef} className="relative h-[250dvh]">
+        <div className="sticky top-16 h-[calc(100dvh-4rem)] bg-mekra-white flex flex-col items-center overflow-hidden">
+
+          {/* Nombre + precio — fijo en la parte superior */}
+          <div className="text-center pt-7 sm:pt-9 px-6 shrink-0">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-mekra-black tracking-tight leading-tight">
+              {producto.nombre}
+            </h1>
+            <p className="mt-2.5 text-2xl sm:text-3xl font-black text-mekra-orange tabular-nums">
+              {producto.precio > 0 ? `S/${producto.precio}` : 'Consultar precio'}
+            </p>
+          </div>
+
+          {/* Canvas frame-by-frame — centrado, invisible hasta cargado */}
+          <div className="flex-1 flex items-center justify-center w-full px-4">
+            <div className="h-[300px] md:h-[500px]">
+              <canvas
+                ref={canvasRef}
+                className={`transition-opacity duration-500 ${cargado ? 'opacity-100' : 'opacity-0'}`}
+                style={{ height: '100%', width: 'auto', display: 'block' }}
+              />
+            </div>
+          </div>
+
+          {/* Texto narrativo — aparece al 60 % via GSAP */}
+          <div className="absolute bottom-10 sm:bottom-14 left-0 right-0 text-center px-6 pointer-events-none">
+            <p ref={textRef} className="text-xl sm:text-2xl md:text-3xl font-black text-mekra-black leading-tight">
+              Personalizado con su foto
+            </p>
+            <p ref={subtextRef} className="mt-2 text-sm sm:text-base text-mekra-black/55 leading-relaxed">
+              Envíanos la foto y nosotros hacemos el resto
+            </p>
+          </div>
+
+          {/* Indicador de scroll */}
+          <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 pointer-events-none">
+            <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-mekra-black/25">
+              Desliza
+            </span>
+            <span className="w-5 h-8 rounded-full border border-mekra-black/20 flex items-start justify-center p-1">
+              <span className="w-1 h-2 rounded-full bg-mekra-orange animate-mekra-float" />
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// Fallback estático (prefers-reduced-motion o sin frames)
+function HeroCamaraEstatico({ producto }) {
+  const midSrc = FRAME_SRCS[Math.floor(FRAME_SRCS.length / 2)] || null
+  return (
+    <section className="bg-mekra-white px-6 pt-8 pb-16">
+      <div className="max-w-2xl mx-auto flex flex-col items-center text-center gap-7">
+        <Link
+          to="/catalogo"
+          className="text-[11px] font-bold uppercase tracking-widest text-mekra-black/35 hover:text-mekra-orange transition-colors duration-150"
+        >
+          ← Catálogo / {producto.categoria}
+        </Link>
+        <h1 className="text-4xl sm:text-5xl font-black text-mekra-black tracking-tight leading-tight">
+          {producto.nombre}
+        </h1>
+        <p className="text-2xl font-black text-mekra-orange">
+          {producto.precio > 0 ? `S/${producto.precio}` : 'Consultar precio'}
+        </p>
+        {midSrc && (
+          <img
+            src={midSrc}
+            alt={producto.nombre}
+            className="h-64 sm:h-80 w-auto"
+          />
+        )}
+        <p className="text-xl font-black text-mekra-black">Personalizado con su foto</p>
+        <p className="text-base text-mekra-black/55 leading-relaxed">
+          Envíanos la foto y nosotros hacemos el resto
+        </p>
+      </div>
+    </section>
+  )
+}
+
+// ── PLANTILLA GENÉRICA OSCURA (todos los demás productos) ──────────
 
 function HistoriaAnimada({ producto }) {
   const fotos = producto.fotos ?? []
   const tieneSegunda = fotos.length > 1
 
-  const trackRef = useRef(null)
+  const trackRef    = useRef(null)
   const parallaxRef = useRef(null)
-  const zoomRef = useRef(null)
-  const capaARef = useRef(null)
-  const capaBRef = useRef(null)
-  const escena1Ref = useRef(null)
-  const escena2Ref = useRef(null)
+  const zoomRef     = useRef(null)
+  const capaARef    = useRef(null)
+  const capaBRef    = useRef(null)
+  const escena1Ref  = useRef(null)
+  const escena2Ref  = useRef(null)
 
   useLayoutEffect(() => {
     const track = trackRef.current
@@ -60,11 +317,11 @@ function HistoriaAnimada({ producto }) {
 
     const lenis = new Lenis({
       duration: 1.4,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smooth: true,
     })
     lenis.on('scroll', ScrollTrigger.update)
-    const raf = (time) => lenis.raf(time * 1000)
+    const raf = time => lenis.raf(time * 1000)
     gsap.ticker.add(raf)
     gsap.ticker.lagSmoothing(0)
 
@@ -73,7 +330,6 @@ function HistoriaAnimada({ producto }) {
         { opacity: 0, y: 24 },
         { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out', stagger: 0.12, delay: 0.1, clearProps: 'transform' }
       )
-
       gsap.set(escena2Ref.current, { opacity: 0, y: 32 })
       gsap.set(zoomRef.current, { scale: 1 })
       if (tieneSegunda) {
@@ -88,19 +344,16 @@ function HistoriaAnimada({ producto }) {
         scrollTrigger: { trigger: track, start: 'top top', end: 'bottom bottom', scrub: esMovil ? 0.6 : 1 },
       })
 
-      // Escena 1 (nombre + precio) → Escena 2 (descripción)
       tl.to(escena1Ref.current, { opacity: 0, y: -32, duration: 0.12 }, 0.28)
         .fromTo(escena2Ref.current, { opacity: 0, y: 32 }, { opacity: 1, y: 0, duration: 0.14 }, 0.34)
         .to(escena2Ref.current, { opacity: 0, y: -32, duration: 0.12 }, 0.82)
         .to({}, { duration: 0.1 }, 0.95)
 
-      // Crossfade entre la primera y segunda foto (si existe)
       if (tieneSegunda) {
         tl.to(capaARef.current, { opacity: 0, duration: 0.2, ease: 'power1.inOut' }, 0.30)
           .to(capaBRef.current, { opacity: 1, duration: 0.2, ease: 'power1.inOut' }, 0.30)
       }
 
-      // Zoom + parallax del producto a lo largo del recorrido
       gsap.to(zoomRef.current, {
         scale: 1.16, ease: 'none',
         scrollTrigger: { trigger: track, start: 'top top', end: 'bottom bottom', scrub: 1 },
@@ -110,7 +363,7 @@ function HistoriaAnimada({ producto }) {
         scrollTrigger: { trigger: track, start: 'top top', end: 'bottom bottom', scrub: 1 },
       })
 
-      gsap.utils.toArray('.reveal-up').forEach((el) => {
+      gsap.utils.toArray('.reveal-up').forEach(el => {
         gsap.fromTo(el,
           { opacity: 0, y: 28 },
           { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 85%', once: true } }
@@ -118,18 +371,12 @@ function HistoriaAnimada({ producto }) {
       })
     }, track)
 
-    return () => {
-      ctx.revert()
-      gsap.ticker.remove(raf)
-      lenis.destroy()
-    }
+    return () => { ctx.revert(); gsap.ticker.remove(raf); lenis.destroy() }
   }, [tieneSegunda])
 
   return (
     <section ref={trackRef} className="relative h-[240dvh] md:h-[280dvh]">
       <div className="sticky top-16 h-[calc(100dvh-4rem)] overflow-hidden">
-
-        {/* Visual del producto (centrado, con parallax + zoom) */}
         <div ref={parallaxRef} className="absolute inset-0 will-change-transform">
           <div ref={zoomRef} className="relative w-full h-full will-change-transform">
             <CapaVisual innerRef={capaARef} producto={producto} foto={fotos[0]} />
@@ -137,10 +384,8 @@ function HistoriaAnimada({ producto }) {
           </div>
         </div>
 
-        {/* Velo inferior: legibilidad del texto sobre el producto en móvil */}
         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/85 to-transparent md:hidden z-10 pointer-events-none" />
 
-        {/* Escena 1 — nombre + precio */}
         <CapaEscena innerRef={escena1Ref} className="z-20">
           <EnlaceCatalogo producto={producto} className="hero-in" />
           <h1 className="hero-in mt-5 text-4xl sm:text-5xl md:text-6xl font-black leading-[1.02] tracking-tight text-balance">
@@ -151,7 +396,6 @@ function HistoriaAnimada({ producto }) {
           </p>
         </CapaEscena>
 
-        {/* Escena 2 — descripción */}
         <CapaEscena innerRef={escena2Ref} className="z-20">
           <p className="text-2xl sm:text-3xl md:text-4xl font-black leading-[1.12] tracking-tight text-balance">
             {producto.descripcion}
@@ -163,8 +407,6 @@ function HistoriaAnimada({ producto }) {
     </section>
   )
 }
-
-// ── STORYTELLING ESTÁTICO (prefers-reduced-motion) ─────────────────
 
 function HistoriaEstatica({ producto }) {
   return (
@@ -186,13 +428,12 @@ function HistoriaEstatica({ producto }) {
   )
 }
 
-// ── SECCIÓN — FICHA TÉCNICA (producto.detalles) ────────────────────
+// ── FICHA TÉCNICA — compartida ─────────────────────────────────────
 
 function Especificaciones({ producto }) {
   const filas = (producto.detalles?.length > 0)
     ? producto.detalles
     : derivarDetalles(producto)
-
   if (filas.length === 0) return null
 
   return (
@@ -201,15 +442,14 @@ function Especificaciones({ producto }) {
         <p className="reveal-up text-[11px] font-black uppercase tracking-[0.3em] text-mekra-orange">
           Ficha técnica
         </p>
-        <h2 className="reveal-up mt-3 text-2xl sm:text-3xl font-black tracking-tight">
+        <h2 className="reveal-up mt-3 text-2xl sm:text-3xl font-black tracking-tight text-mekra-white">
           Cada detalle, especificado
         </h2>
-
         <dl className="reveal-up mt-10 divide-y divide-white/10">
           {filas.map((f, i) => (
             <div key={i} className="flex items-baseline justify-between gap-6 py-4">
               <dt className="text-xs sm:text-sm font-bold uppercase tracking-widest text-white/40">{f.etiqueta}</dt>
-              <dd className="text-right text-base sm:text-lg font-black text-white">{f.valor}</dd>
+              <dd className="text-right text-base sm:text-lg font-black text-mekra-white">{f.valor}</dd>
             </div>
           ))}
         </dl>
@@ -218,7 +458,6 @@ function Especificaciones({ producto }) {
   )
 }
 
-// Respaldo: arma detalles desde los campos sueltos si el producto no define detalles[]
 function derivarDetalles(p) {
   return [
     { etiqueta: 'Material',              valor: p.material },
@@ -228,20 +467,15 @@ function derivarDetalles(p) {
   ].filter(f => f.valor)
 }
 
-// ── SECCIÓN — CTA FINAL ────────────────────────────────────────────
+// ── CTA FINAL — compartido ─────────────────────────────────────────
 
 function CtaFinal({ producto }) {
   const { addItem, setIsOpen } = useCart()
   const [color, setColor] = useState(producto.colores[0] ?? null)
   const waLabel = producto.whatsapp_texto || 'Pedir por WhatsApp'
-  const mensaje = encodeURIComponent(`Hola! Me interesa "${producto.nombre}" de Mekra3D. ¿Pueden ayudarme? 🧡`)
-  const waHref = `https://wa.me/${siteInfo.whatsapp}?text=${mensaje}`
-  const seVende = producto.precio > 0
-
-  function agregarAlCarrito() {
-    addItem(producto, 1, color)
-    setIsOpen(true)
-  }
+  const mensaje  = encodeURIComponent(`Hola! Me interesa "${producto.nombre}" de Mekra3D. ¿Pueden ayudarme? 🧡`)
+  const waHref   = `https://wa.me/${siteInfo.whatsapp}?text=${mensaje}`
+  const seVende  = producto.precio > 0
 
   return (
     <section className="bg-mekra-orange px-6 py-24 sm:py-32">
@@ -252,7 +486,7 @@ function CtaFinal({ producto }) {
 
         {producto.colores.length > 0 && (
           <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
-            {producto.colores.map((c) => (
+            {producto.colores.map(c => (
               <button
                 key={c}
                 onClick={() => setColor(c)}
@@ -271,7 +505,7 @@ function CtaFinal({ producto }) {
         <div className="mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
           {seVende && (
             <button
-              onClick={agregarAlCarrito}
+              onClick={() => { addItem(producto, 1, color); setIsOpen(true) }}
               className="inline-flex items-center justify-center gap-2 px-10 py-5 bg-mekra-black text-mekra-white font-black uppercase tracking-widest text-sm sm:text-base rounded transition-all duration-200 hover:scale-[1.02] active:scale-[0.99]"
             >
               Agregar al carrito
@@ -292,9 +526,8 @@ function CtaFinal({ producto }) {
   )
 }
 
-// ── PIEZAS REUTILIZABLES ───────────────────────────────────────────
+// ── PIEZAS REUTILIZABLES (plantilla genérica) ──────────────────────
 
-// Una capa visual: foto real o placeholder oscuro, dentro de un marco común
 function CapaVisual({ innerRef, producto, foto }) {
   return (
     <div className="absolute inset-0 flex items-center justify-center md:justify-end md:pr-[7%]">
@@ -310,7 +543,6 @@ function CapaVisual({ innerRef, producto, foto }) {
   )
 }
 
-// Capa de texto superpuesta: abajo en móvil, centro-izquierda en desktop
 function CapaEscena({ innerRef, className = '', children }) {
   return (
     <div
@@ -322,25 +554,19 @@ function CapaEscena({ innerRef, className = '', children }) {
   )
 }
 
-// Placeholder oscuro con el nombre (cuando fotos[] está vacío)
 function PlaceholderProducto({ nombre }) {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center gap-4 px-6 text-center">
       <span className="text-[10px] font-black uppercase tracking-[0.3em] text-mekra-orange/80">Mekra3D</span>
-      <span className="text-white font-black text-2xl md:text-3xl leading-tight tracking-tight text-balance">{nombre}</span>
+      <span className="text-mekra-white font-black text-2xl md:text-3xl leading-tight tracking-tight text-balance">{nombre}</span>
       <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">Vista del producto</span>
     </div>
   )
 }
 
 function PrecioEtiqueta({ producto }) {
-  if (producto.precio > 0) {
-    return (
-      <span className="text-3xl sm:text-4xl font-black text-mekra-orange leading-none tabular-nums">
-        S/{producto.precio}
-      </span>
-    )
-  }
+  if (producto.precio > 0)
+    return <span className="text-3xl sm:text-4xl font-black text-mekra-orange leading-none tabular-nums">S/{producto.precio}</span>
   return <span className="text-2xl font-black text-white/50 leading-none">Consultar precio</span>
 }
 
@@ -378,7 +604,7 @@ function ProductoNoEncontrado() {
       <h1 className="text-xl font-black text-mekra-black uppercase tracking-tight">Producto no encontrado</h1>
       <Link
         to="/catalogo"
-        className="inline-flex items-center gap-2 px-6 py-3 bg-mekra-orange text-white font-black uppercase tracking-widest text-xs rounded transition-all duration-200 hover:brightness-110"
+        className="inline-flex items-center gap-2 px-6 py-3 bg-mekra-orange text-mekra-white font-black uppercase tracking-widest text-xs rounded transition-all duration-200 hover:brightness-110"
       >
         Ver catálogo
       </Link>
