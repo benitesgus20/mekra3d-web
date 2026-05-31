@@ -150,6 +150,13 @@ function CamaraAnimada({ producto }) {
         0.60
       )
 
+      // Sin este padding la duración implícita de la timeline sería 0.66
+      // (último tween en 0.60 + duration 0.06), lo que haría que el botón
+      // apareciera recién al 91 % del scroll (0.60 / 0.66 ≈ 0.91).
+      // Extendemos a 1.0 → botón al 60 %, frames 31-50 completan con
+      // todos los textos ya visibles.
+      tl.to({}, { duration: 0.34 }, 0.66)
+
       // Reveals para las secciones que vienen debajo (ficha + CTA)
       gsap.utils.toArray('.reveal-up').forEach(el => {
         gsap.fromTo(el,
