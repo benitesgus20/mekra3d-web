@@ -17,10 +17,15 @@ import { siteInfo } from '../data'
 
 gsap.registerPlugin(ScrollTrigger)
 
-// Vite resuelve el glob en build-time; se re-evalúa en cada build
-// (captura los frames actualizados 035-050 automáticamente)
-const _raw = import.meta.glob('../assets/camara-frames/frame-*.png', { eager: true })
-const FRAME_SRCS = Object.keys(_raw).sort().map(k => _raw[k].default)
+// Ruta absoluta desde la raíz del proyecto — garantiza que Vite
+// resuelva correctamente los frames actualizados (035-050 incluidos)
+const frameModules = import.meta.glob(
+  '/src/assets/camara-frames/frame-*.png',
+  { eager: true }
+)
+const FRAME_SRCS = Object.keys(frameModules)
+  .sort()
+  .map(key => frameModules[key].default)
 
 function waUrl(nombre) {
   return `https://wa.me/${siteInfo.whatsapp}?text=${encodeURIComponent(
@@ -76,17 +81,6 @@ function CamaraAnimada({ producto }) {
     const wrapper = wrapperRef.current
     if (!wrapper) return
 
-    const imgs  = imagesRef.current
-    const total = imgs.length
-
-    // Cambiar el src del <img> directamente (sin re-render de React)
-    function updateFrame(raw) {
-      const idx = Math.max(0, Math.min(Math.round(raw), total - 1))
-      if (imgRef.current && imgs[idx]?.src) {
-        imgRef.current.src = imgs[idx].src
-      }
-    }
-
     const lenis = new Lenis({
       duration: 1.4,
       easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -114,24 +108,21 @@ function CamaraAnimada({ producto }) {
         },
       })
 
-      // ── Animación de frames ────────────────────────────────────
-      // Fase 1: frames 0 → 30 durante el primer 60 % del scroll
-      const frameObj1 = { n: 0 }
-      tl.to(frameObj1, {
-        n: 30,
-        ease: 'none',
-        duration: 0.60,
-        onUpdate: () => updateFrame(frameObj1.n),
-      }, 0)
-
-      // Fase 2: frames 30 → 49 durante el 60-100 % restante
-      const frameObj2 = { n: 30 }
-      tl.to(frameObj2, {
-        n: total - 1,
-        ease: 'none',
-        duration: 0.40,
-        onUpdate: () => updateFrame(frameObj2.n),
-      }, 0.60)
+      // ── Animación de frames via scrollProgress ─────────────────
+      // El scroll handler actualiza el frame directamente según el
+      // progreso (0→1) del ScrollTrigger, sin GSAP tweens intermedios
+      ScrollTrigger.create({
+        trigger: wrapper,
+        start: 'top top',
+        end:   'bottom bottom',
+        onUpdate: (self) => {
+          const index = Math.min(
+            Math.floor(self.progress * FRAME_SRCS.length),
+            FRAME_SRCS.length - 1
+          )
+          if (imgRef.current) imgRef.current.src = FRAME_SRCS[index]
+        },
+      })
 
       // ── Textos: todo comprimido en el primer 60 % ──────────────
       // Precio aparece al 15 %
