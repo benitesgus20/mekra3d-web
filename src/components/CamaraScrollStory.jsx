@@ -95,12 +95,29 @@ function CamaraAnimada({ producto }) {
     // Tamaño CSS del contenedor (actualizado por ResizeObserver)
     const cssSz = { w: container.clientWidth, h: container.clientHeight }
 
-    // ── Dibuja el frame idx en el canvas ──────────────────────────
+    // ── Dibuja el frame idx en el canvas (letterbox/pillarbox) ───
     function drawFrame(idx) {
       const img = imgs[Math.max(0, Math.min(idx, imgs.length - 1))]
       if (!img?.complete || !cssSz.w || !cssSz.h) return
+
+      const imgRatio    = img.naturalWidth / img.naturalHeight
+      const canvasRatio = cssSz.w / cssSz.h
+
+      let drawW, drawH, offsetX, offsetY
+      if (canvasRatio > imgRatio) {
+        drawH   = cssSz.h
+        drawW   = drawH * imgRatio
+        offsetX = (cssSz.w - drawW) / 2
+        offsetY = 0
+      } else {
+        drawW   = cssSz.w
+        drawH   = drawW / imgRatio
+        offsetX = 0
+        offsetY = (cssSz.h - drawH) / 2
+      }
+
       ctx.clearRect(0, 0, cssSz.w, cssSz.h)
-      ctx.drawImage(img, 0, 0, cssSz.w, cssSz.h)
+      ctx.drawImage(img, offsetX, offsetY, drawW, drawH)
     }
 
     // Inicializar canvas buffer con tamaño actual del contenedor
