@@ -1,5 +1,9 @@
 // ── CATÁLOGO MEKRA3D — fuente central de productos ────────────────
 // La categoría representa la OCASIÓN del regalo (Papa, Parejas, ...).
+// detalles[]      → ficha técnica de la página de detalle
+// descripcion     → texto narrativo del storytelling
+// fotos[]         → imágenes (placeholder oscuro si está vacío)
+// whatsapp_texto  → etiqueta del botón final de WhatsApp
 
 export const productos = [
   {
@@ -15,7 +19,14 @@ export const productos = [
     precio: 25,
     colores: [],
     fotos: [],
-    descripcion: 'Llavero con forma de cámara que se abre y revela tu foto.',
+    descripcion: 'Un llavero con forma de cámara que se abre y revela la foto que tú elijas. El recuerdo que papá lleva siempre consigo.',
+    detalles: [
+      { etiqueta: 'Material',              valor: 'PLA de alta calidad' },
+      { etiqueta: 'Personalización',       valor: 'Tu foto a color' },
+      { etiqueta: 'Tiempo de fabricación', valor: '2 horas' },
+      { etiqueta: 'Ideal para',            valor: 'Día del Padre' },
+    ],
+    whatsapp_texto: 'Pedir mi Llavero Cámara',
     descuentos_cantidad: [],
     activo: true,
   },
@@ -32,7 +43,14 @@ export const productos = [
     precio: 30,
     colores: [],
     fotos: [],
-    descripcion: 'Marco con tu canción favorita y código para escanear.',
+    descripcion: 'Tu canción favorita convertida en objeto: un marco con la portada y un código que se escanea para reproducirla.',
+    detalles: [
+      { etiqueta: 'Material',              valor: 'PLA de alta calidad' },
+      { etiqueta: 'Personalización',       valor: 'Canción + foto' },
+      { etiqueta: 'Código',                valor: 'Escaneable en Spotify' },
+      { etiqueta: 'Tiempo de fabricación', valor: '3 horas' },
+    ],
+    whatsapp_texto: 'Pedir mi Marco Spotify',
     descuentos_cantidad: [],
     activo: true,
   },
@@ -44,11 +62,19 @@ export const productos = [
     estilo: 'Clásico',
     material: 'PLA+',
     peso: '76g',
+    medidas: '',
     tiempo_fabricacion: '3 horas',
     precio: 22,
     colores: [],
     fotos: [],
-    descripcion: 'Rosa eterna en 3D con un mensaje grabado a tu gusto.',
+    descripcion: 'Una rosa que nunca se marchita, impresa en 3D y con un mensaje grabado a tu gusto. Un detalle que dura para siempre.',
+    detalles: [
+      { etiqueta: 'Material',              valor: 'PLA+' },
+      { etiqueta: 'Peso',                  valor: '76g' },
+      { etiqueta: 'Personalización',       valor: 'Mensaje grabado' },
+      { etiqueta: 'Tiempo de fabricación', valor: '3 horas' },
+    ],
+    whatsapp_texto: 'Pedir mi Rosa Eterna',
     descuentos_cantidad: [],
     activo: true,
   },
@@ -65,7 +91,15 @@ export const productos = [
     precio: 18,
     colores: [],
     fotos: [],
-    descripcion: 'Llavero personalizado con la foto que tú elijas.',
+    descripcion: 'Lleva contigo la foto que más quieres. Un llavero personalizado con la imagen que tú elijas, hecho a mano en Trujillo.',
+    detalles: [
+      { etiqueta: 'Material',              valor: 'PLA de alta calidad' },
+      { etiqueta: 'Medidas',               valor: '13 x 9 cm' },
+      { etiqueta: 'Peso',                  valor: '30g' },
+      { etiqueta: 'Personalización',       valor: 'Tu foto' },
+      { etiqueta: 'Tiempo de fabricación', valor: '2 horas' },
+    ],
+    whatsapp_texto: 'Pedir mi Llavero Fotográfico',
     descuentos_cantidad: [],
     activo: true,
   },
