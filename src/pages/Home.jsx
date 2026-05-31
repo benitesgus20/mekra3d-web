@@ -1,8 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import Lenis from '@studio-freight/lenis'
 import { productos } from '../data'
 import { useCart } from '../context/CartContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import camaraCerrada from '../assets/hero-camara-cerrada.png'
+import camaraAbierta from '../assets/hero-camara-abierta.png'
+
+gsap.registerPlugin(ScrollTrigger)
 
 const PASOS = [
   { emoji: '📐', titulo: 'Diseño',             desc: 'Adaptamos o creamos tu modelo 3D a medida.' },
@@ -44,76 +51,202 @@ export default function Home() {
 // ── 1. HERO ────────────────────────────────────────────────────────
 
 function Hero() {
+  const sectionRef = useRef(null)
+  const cerradaRef = useRef(null)
+  const abiertaRef = useRef(null)
+  const camaraRef = useRef(null)   // parallax de scroll (translateY)
+  const mouseRef = useRef(null)    // parallax de mouse (x/y)
+  const floatRef = useRef(null)    // flotación pasiva (translateY)
+  const giantRef = useRef(null)    // contenedor del texto gigante (parallax)
+  const papaRef = useRef(null)
+  const heroeRef = useRef(null)
+  const mekraRef = useRef(null)
+
+  useLayoutEffect(() => {
+    const section = sectionRef.current
+    if (!section) return
+
+    // Smooth scrolling con Lenis, sincronizado al ticker de GSAP
+    const lenis = new Lenis({ duration: 1.2, smooth: true })
+    lenis.on('scroll', ScrollTrigger.update)
+    const raf = (time) => lenis.raf(time * 1000)
+    gsap.ticker.add(raf)
+    gsap.ticker.lagSmoothing(0)
+
+    const ctx = gsap.context(() => {
+      const sinMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+      // Accesibilidad: si el usuario prefiere menos movimiento, mostrar cámara abierta estática
+      if (sinMovimiento) {
+        gsap.set(cerradaRef.current, { autoAlpha: 0 })
+        gsap.set(abiertaRef.current, { autoAlpha: 1, scale: 1 })
+        return
+      }
+
+      // Entrada con stagger: badge → título → subtítulo → botón.
+      // Usamos fromTo (no from) para fijar el estado final explícito y evitar
+      // que el doble montaje de StrictMode deje algún elemento en opacity 0.
+      gsap.fromTo('.hero-stagger',
+        { opacity: 0, y: 30 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.7,
+          ease: 'power2.out',
+          stagger: 0.15,
+          delay: 0.1,
+          clearProps: 'opacity,transform',
+        }
+      )
+
+      // Estado inicial de la cámara
+      gsap.set(cerradaRef.current, { opacity: 1, scale: 1 })
+      gsap.set(abiertaRef.current, { opacity: 0, scale: 0.95 })
+
+      // Timeline scroll-driven (0% → 100% del scroll del hero)
+      const tl = gsap.timeline({
+        defaults: { ease: 'none' },
+        scrollTrigger: {
+          trigger: section,
+          start: 'top top',
+          end: 'bottom top',
+          scrub: true,
+        },
+      })
+
+      tl
+        // 0 → 30%: crossfade de cámara cerrada a abierta
+        .to(cerradaRef.current, { opacity: 0, scale: 1.05, duration: 0.3 }, 0)
+        .to(abiertaRef.current, { opacity: 1, scale: 1, duration: 0.3 }, 0)
+        // 30 → 100%: parallax suave de la cámara abierta
+        .to(camaraRef.current, { y: -30, duration: 0.7 }, 0.3)
+        // texto gigante: parallax vertical durante todo el scroll
+        .to(giantRef.current, { y: -100, duration: 1 }, 0)
+        // ~50%: PAPÁ → HÉROE
+        .to(papaRef.current, { opacity: 0, duration: 0.12 }, 0.44)
+        .to(heroeRef.current, { opacity: 0.05, duration: 0.12 }, 0.44)
+        // ~100%: HÉROE → MEKRA3D
+        .to(heroeRef.current, { opacity: 0, duration: 0.12 }, 0.88)
+        .to(mekraRef.current, { opacity: 0.05, duration: 0.12 }, 0.88)
+
+      // Flotación pasiva sobre un wrapper independiente (no choca con los parallax)
+      const floatTween = gsap.fromTo(
+        floatRef.current,
+        { y: -8 },
+        { y: 8, duration: 4, ease: 'sine.inOut', yoyo: true, repeat: -1 }
+      )
+
+      // Pausar la flotación mientras hay scroll activo
+      let scrollTimeout
+      lenis.on('scroll', () => {
+        floatTween.pause()
+        clearTimeout(scrollTimeout)
+        scrollTimeout = setTimeout(() => floatTween.resume(), 150)
+      })
+
+      // Parallax de mouse (±12px), solo desktop
+      let onMove
+      if (window.matchMedia('(min-width: 769px)').matches) {
+        const xTo = gsap.quickTo(mouseRef.current, 'x', { duration: 0.6, ease: 'power3' })
+        const yTo = gsap.quickTo(mouseRef.current, 'y', { duration: 0.6, ease: 'power3' })
+        onMove = (e) => {
+          const dx = (e.clientX - window.innerWidth / 2) / (window.innerWidth / 2)
+          const dy = (e.clientY - window.innerHeight / 2) / (window.innerHeight / 2)
+          xTo(dx * 12)
+          yTo(dy * 12)
+        }
+        window.addEventListener('mousemove', onMove)
+      }
+
+      return () => {
+        if (onMove) window.removeEventListener('mousemove', onMove)
+        clearTimeout(scrollTimeout)
+      }
+    }, section)
+
+    return () => {
+      ctx.revert()
+      gsap.ticker.remove(raf)
+      lenis.destroy()
+    }
+  }, [])
+
   return (
-    <section className="bg-mekra-black">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-[60px]">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+    <section
+      ref={sectionRef}
+      className="relative bg-mekra-white overflow-hidden min-h-screen flex items-center"
+    >
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-0">
+        <div className="grid grid-cols-1 md:grid-cols-[40%_60%] items-center gap-10 md:gap-0">
 
-          {/* Texto */}
-          <div>
-            <p className="inline-flex items-center gap-2 text-mekra-orange text-[10px] font-black uppercase tracking-widest mb-6">
-              <span className="block h-px w-6 bg-mekra-orange" />
-              Trujillo, Perú
-            </p>
+          {/* ZONA IZQUIERDA — texto (en móvil va arriba) */}
+          <div className="text-center md:text-left">
+            <span className="hero-stagger inline-block px-3 py-1.5 bg-mekra-orange text-white text-[10px] sm:text-xs font-black uppercase tracking-widest rounded">
+              Día del Padre 2026
+            </span>
 
-            <h1 className="text-[48px] font-black text-white leading-[1.1] tracking-tight mb-5">
-              Creamos lo que<br />
-              <span className="text-mekra-orange">imaginas.</span>
+            <h1 className="hero-stagger text-[40px] sm:text-5xl lg:text-6xl font-black text-mekra-black leading-[1.05] tracking-tight mt-5 mb-4">
+              El regalo que<br />nunca olvidará
             </h1>
 
-            <p className="text-white/55 text-[14px] leading-relaxed mb-6 max-w-md">
-              Piezas únicas hechas a pedido en Trujillo, Perú.
-              Impresión 3D de alta calidad para tu hogar, empresa o colección.
+            <p className="hero-stagger text-mekra-black/55 text-sm sm:text-base leading-relaxed mb-8 max-w-md mx-auto md:mx-0">
+              Personalizado con su foto · Hecho en Trujillo
             </p>
 
             <Link
-              to="/catalogo"
-              className="inline-flex items-center gap-2.5 px-8 py-4 bg-mekra-orange text-white font-black uppercase tracking-widest text-sm rounded transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+              to="/catalogo?categoria=personalizados"
+              className="hero-stagger inline-flex items-center gap-2.5 px-8 py-4 bg-mekra-orange text-white font-black uppercase tracking-widest text-sm rounded transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
             >
-              Ver catálogo
+              Ver regalos para papá
               <IconFlecha />
             </Link>
           </div>
 
-          {/* Visual placeholder elegante */}
-          <div className="hidden lg:flex items-center justify-center">
-            <HeroVisual />
+          {/* ZONA DERECHA — texto gigante + cámara (en móvil va abajo) */}
+          <div className="relative flex items-center justify-center min-h-[300px] md:min-h-[460px]">
+
+            {/* Texto gigante de fondo (z-1) */}
+            <div
+              ref={giantRef}
+              className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[1]"
+              aria-hidden
+            >
+              <span ref={papaRef} className="absolute font-black text-mekra-black leading-none whitespace-nowrap text-[32vw] md:text-[22vw] opacity-5">
+                PAPÁ
+              </span>
+              <span ref={heroeRef} className="absolute font-black text-mekra-black leading-none whitespace-nowrap text-[32vw] md:text-[22vw] opacity-0">
+                HÉROE
+              </span>
+              <span ref={mekraRef} className="absolute font-black text-mekra-black leading-none whitespace-nowrap text-[26vw] md:text-[18vw] opacity-0">
+                MEKRA3D
+              </span>
+            </div>
+
+            {/* Cámara (z-2) */}
+            <div ref={camaraRef} className="camara-container relative z-[2] will-change-transform">
+              <div ref={mouseRef}>
+                <div ref={floatRef} className="relative">
+                  <img
+                    ref={cerradaRef}
+                    src={camaraCerrada}
+                    alt="Llavero cámara personalizado para papá"
+                    loading="eager"
+                    className="block h-[260px] md:h-[380px] w-auto drop-shadow-2xl"
+                  />
+                  <img
+                    ref={abiertaRef}
+                    src={camaraAbierta}
+                    alt="Llavero cámara abierto mostrando la foto de papá"
+                    loading="eager"
+                    className="absolute inset-0 h-[260px] md:h-[380px] w-auto drop-shadow-2xl"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </section>
-  )
-}
-
-function HeroVisual() {
-  return (
-    <div className="relative w-40 h-40 xl:w-48 xl:h-48">
-      {/* Círculos concéntricos decorativos */}
-      <div className="absolute inset-0 rounded-full border border-white/5" />
-      <div className="absolute inset-4 rounded-full border border-white/8" />
-      <div className="absolute inset-8 rounded-full border border-mekra-orange/20" />
-
-      {/* Cubo wireframe centrado */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <svg width="60" height="60" viewBox="0 0 120 120" fill="none" aria-hidden>
-          {/* Cara frontal */}
-          <rect x="30" y="50" width="60" height="60" stroke="#FF6B00" strokeWidth="1.5" strokeOpacity="0.7" />
-          {/* Cara superior */}
-          <path d="M30 50 L50 30 L110 30 L90 50Z" stroke="white" strokeWidth="1.5" strokeOpacity="0.2" fill="none" />
-          {/* Cara lateral */}
-          <path d="M90 50 L110 30 L110 90 L90 110Z" stroke="white" strokeWidth="1.5" strokeOpacity="0.2" fill="none" />
-          {/* Líneas de profundidad */}
-          <line x1="30" y1="50" x2="50" y2="30" stroke="white" strokeWidth="1" strokeOpacity="0.15" />
-          <line x1="90" y1="50" x2="110" y2="30" stroke="white" strokeWidth="1" strokeOpacity="0.15" />
-          <line x1="90" y1="110" x2="110" y2="90" stroke="white" strokeWidth="1" strokeOpacity="0.15" />
-        </svg>
-      </div>
-
-      {/* Puntos orbitales */}
-      <div className="absolute top-3 right-5 w-1.5 h-1.5 rounded-full bg-mekra-orange opacity-60" />
-      <div className="absolute bottom-5 left-3 w-1 h-1 rounded-full bg-mekra-orange opacity-40" />
-      <div className="absolute top-1/2 right-1 w-1 h-1 rounded-full bg-white opacity-30" />
-    </div>
   )
 }
 
