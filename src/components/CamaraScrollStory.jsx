@@ -1,9 +1,11 @@
 /**
- * CamaraScrollStory
- * Scroll storytelling estilo Huawei para el Llavero Cámara Papá.
- * Desktop: cámara izquierda 55% | textos derecha 45%
- * Mobile:  cámara arriba 60dvh  | textos abajo
- * Scroll total: 400dvh. GSAP ScrollTrigger scrub: 1.5
+ * CamaraScrollStory v2
+ * Layout estilo Huawei Watch Fit 5 Pro:
+ * - Izquierda 55 %: cámara full-height sin padding (img, no canvas)
+ * - Derecha 45 %: título visible desde el inicio + textos que aparecen con scroll
+ * - Timing comprimido: todo ocurre en el primer 60 % del scroll
+ * - Frames bifásicos: 0→30 en 0-60 % / 30→49 en 60-100 %
+ * - Scroll wrapper: 350 dvh
  */
 
 import { useRef, useEffect, useLayoutEffect, useState } from 'react'
@@ -15,17 +17,16 @@ import { siteInfo } from '../data'
 
 gsap.registerPlugin(ScrollTrigger)
 
-// Vite resuelve el glob en build-time; frames ordenados 001 → 050
+// Vite resuelve el glob en build-time; se re-evalúa en cada build
+// (captura los frames actualizados 035-050 automáticamente)
 const _raw = import.meta.glob('../assets/camara-frames/frame-*.png', { eager: true })
 const FRAME_SRCS = Object.keys(_raw).sort().map(k => _raw[k].default)
 
-// Dimensiones conocidas de los frames (720×1280 RGBA)
-const FRAME_W = 720
-const FRAME_H = 1280
-
-const WA_URL = `https://wa.me/${siteInfo.whatsapp}?text=${encodeURIComponent(
-  'Hola, quiero el Llavero Cámara Papá 🎁'
-)}`
+function waUrl(nombre) {
+  return `https://wa.me/${siteInfo.whatsapp}?text=${encodeURIComponent(
+    `Hola, quiero pedir "${nombre}" de Mekra3D 🎁`
+  )}`
+}
 
 function prefiereSinMovimiento() {
   return typeof window !== 'undefined'
@@ -36,10 +37,7 @@ function prefiereSinMovimiento() {
 
 export default function CamaraScrollStory({ producto }) {
   const [sinMovimiento] = useState(prefiereSinMovimiento)
-
-  if (FRAME_SRCS.length === 0 || sinMovimiento) {
-    return <CamaraEstatica producto={producto} />
-  }
+  if (FRAME_SRCS.length === 0 || sinMovimiento) return <CamaraEstatica producto={producto} />
   return <CamaraAnimada producto={producto} />
 }
 
@@ -47,8 +45,7 @@ export default function CamaraScrollStory({ producto }) {
 
 function CamaraAnimada({ producto }) {
   const wrapperRef  = useRef(null)
-  const canvasRef   = useRef(null)
-  const titleRef    = useRef(null)
+  const imgRef      = useRef(null)
   const priceRef    = useRef(null)
   const taglineRef  = useRef(null)
   const subtitleRef = useRef(null)
@@ -56,15 +53,11 @@ function CamaraAnimada({ producto }) {
   const imagesRef   = useRef([])
   const [cargado, setCargado] = useState(false)
 
-  // Precarga de los 50 frames
+  // Precarga de todos los frames con new Image()
   useEffect(() => {
-    // Fijar dimensiones del canvas desde ya (evita layout-shift antes de onload)
-    if (canvasRef.current) {
-      canvasRef.current.width  = FRAME_W
-      canvasRef.current.height = FRAME_H
-    }
-
     const total = FRAME_SRCS.length
+    // setTimeout(0) evita el setState síncrono que viola las rules-of-hooks
+    if (total === 0) { setTimeout(() => setCargado(true), 0); return }
     let n = 0
     const imgs = FRAME_SRCS.map(src => {
       const img = new Image()
@@ -77,27 +70,23 @@ function CamaraAnimada({ producto }) {
     return () => { imagesRef.current = [] }
   }, [])
 
-  // GSAP + Lenis una vez que todos los frames están listos
+  // GSAP + Lenis una vez que todos los frames cargaron
   useLayoutEffect(() => {
     if (!cargado) return
     const wrapper = wrapperRef.current
-    const canvas  = canvasRef.current
-    if (!wrapper || !canvas) return
+    if (!wrapper) return
 
-    const ctx2d = canvas.getContext('2d')
     const imgs  = imagesRef.current
     const total = imgs.length
 
-    function drawFrame(raw) {
-      const i   = Math.max(0, Math.min(Math.round(raw), total - 1))
-      const img = imgs[i]
-      if (!img?.complete || !img.naturalWidth) return
-      ctx2d.clearRect(0, 0, FRAME_W, FRAME_H)
-      ctx2d.drawImage(img, 0, 0, FRAME_W, FRAME_H)
+    // Cambiar el src del <img> directamente (sin re-render de React)
+    function updateFrame(raw) {
+      const idx = Math.max(0, Math.min(Math.round(raw), total - 1))
+      if (imgRef.current && imgs[idx]?.src) {
+        imgRef.current.src = imgs[idx].src
+      }
     }
-    drawFrame(0)
 
-    // Lenis smooth scroll sincronizado con GSAP
     const lenis = new Lenis({
       duration: 1.4,
       easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -109,16 +98,13 @@ function CamaraAnimada({ producto }) {
     gsap.ticker.lagSmoothing(0)
 
     const gCtx = gsap.context(() => {
-      // Estado inicial: todos los textos ocultos
-      gsap.set(
-        [titleRef.current, priceRef.current, taglineRef.current,
-         subtitleRef.current, btnRef.current],
-        { opacity: 0, y: 30 }
+      // Precio, tagline, subtítulo y botón empiezan ocultos
+      // El TÍTULO NO se anima — ya viene visible en el JSX
+      gsap.set([priceRef.current, taglineRef.current, subtitleRef.current, btnRef.current],
+        { opacity: 0, y: 40 }
       )
 
-      const frameObj = { n: 0 }
-
-      // Timeline vinculada al scroll del wrapper (400dvh)
+      // Timeline vinculada al scroll; total duration = 1 (normalizado)
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: wrapper,
@@ -128,33 +114,52 @@ function CamaraAnimada({ producto }) {
         },
       })
 
-      // Frame 0 → 49 a lo largo de todo el scroll
-      tl.to(frameObj, {
-        n: total - 1,
+      // ── Animación de frames ────────────────────────────────────
+      // Fase 1: frames 0 → 30 durante el primer 60 % del scroll
+      const frameObj1 = { n: 0 }
+      tl.to(frameObj1, {
+        n: 30,
         ease: 'none',
-        duration: 1,
-        onUpdate: () => drawFrame(frameObj.n),
+        duration: 0.60,
+        onUpdate: () => updateFrame(frameObj1.n),
       }, 0)
 
-      // Textos: cada uno entra en fade-in + slide-up en su porcentaje
-      const textos = [
-        { ref: titleRef,    at: 0.25 },
-        { ref: priceRef,    at: 0.45 },
-        { ref: taglineRef,  at: 0.60 },
-        { ref: subtitleRef, at: 0.75 },
-        { ref: btnRef,      at: 0.90 },
-      ]
+      // Fase 2: frames 30 → 49 durante el 60-100 % restante
+      const frameObj2 = { n: 30 }
+      tl.to(frameObj2, {
+        n: total - 1,
+        ease: 'none',
+        duration: 0.40,
+        onUpdate: () => updateFrame(frameObj2.n),
+      }, 0.60)
 
-      textos.forEach(({ ref, at }) => {
-        tl.fromTo(
-          ref.current,
-          { opacity: 0, y: 30 },
-          { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' },
-          at
-        )
-      })
+      // ── Textos: todo comprimido en el primer 60 % ──────────────
+      // Precio aparece al 15 %
+      tl.fromTo(priceRef.current,
+        { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' },
+        0.15
+      )
+      // Tagline al 30 %
+      tl.fromTo(taglineRef.current,
+        { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' },
+        0.30
+      )
+      // Subtítulo al 45 %
+      tl.fromTo(subtitleRef.current,
+        { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' },
+        0.45
+      )
+      // Botón al 60 %
+      tl.fromTo(btnRef.current,
+        { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' },
+        0.60
+      )
 
-      // Reveals de secciones inferiores (ficha + CTA)
+      // Reveals para las secciones que vienen debajo (ficha + CTA)
       gsap.utils.toArray('.reveal-up').forEach(el => {
         gsap.fromTo(el,
           { opacity: 0, y: 28 },
@@ -173,6 +178,8 @@ function CamaraAnimada({ producto }) {
     }
   }, [cargado])
 
+  const precio = producto.precio > 0 ? `S/${producto.precio}` : 'Consultar precio'
+
   return (
     <>
       {/* Breadcrumb — fuera del scroll zone */}
@@ -188,65 +195,67 @@ function CamaraAnimada({ producto }) {
         </Link>
       </div>
 
-      {/* Wrapper 400dvh — da recorrido de scroll; contenido sticky adentro */}
-      <div ref={wrapperRef} className="relative h-[400dvh]">
+      {/* Wrapper 350 dvh — scroll zone */}
+      <div ref={wrapperRef} className="relative h-[350dvh]">
         <div className="sticky top-16 h-[calc(100dvh-4rem)] bg-mekra-white flex flex-col md:flex-row overflow-hidden">
 
-          {/* ── IZQUIERDA / ARRIBA — cámara ──────────────────────── */}
-          <div className="h-[60dvh] md:h-auto md:w-[55%] md:flex-none flex items-center justify-center bg-mekra-white">
-            <canvas
-              ref={canvasRef}
-              className={`w-auto block transition-opacity duration-500 ${cargado ? 'opacity-100' : 'opacity-0'}`}
-              style={{ height: '100%', maxHeight: '80%' }}
+          {/* ── IZQUIERDA / ARRIBA — cámara full-height ────────── */}
+          <div className="h-[55dvh] md:h-full md:w-[55%] flex items-center justify-center overflow-hidden">
+            {/* Primer frame como src inicial; GSAP lo actualiza directamente */}
+            <img
+              ref={imgRef}
+              src={FRAME_SRCS[0] || ''}
+              alt={producto.nombre}
+              className={`h-full w-auto object-contain block select-none transition-opacity duration-500 ${cargado ? 'opacity-100' : 'opacity-0'}`}
+              draggable={false}
             />
           </div>
 
-          {/* ── DERECHA / ABAJO — textos ──────────────────────────── */}
-          <div className="flex-1 md:w-[45%] flex flex-col justify-center items-start px-8 md:pr-16 md:pl-10 gap-5 md:gap-7">
+          {/* ── DERECHA / ABAJO — textos ─────────────────────────── */}
+          <div className="flex-1 md:w-[45%] flex flex-col justify-center px-8 md:pl-10 md:pr-20 gap-5 md:gap-8">
 
-            {/* Título */}
+            {/* Título — VISIBLE DESDE EL INICIO, no animado */}
             <h1
-              ref={titleRef}
-              className="will-change-transform font-extrabold text-mekra-black leading-[1.05] tracking-tight"
-              style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}
+              className="font-extrabold text-mekra-black leading-tight tracking-tight text-balance"
+              style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)', fontWeight: 800 }}
             >
               {producto.nombre}
             </h1>
 
-            {/* Precio */}
+            {/* Precio — aparece al 15 % */}
             <p
               ref={priceRef}
               className="will-change-transform font-bold text-mekra-orange tabular-nums leading-none"
-              style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)' }}
+              style={{ fontSize: 'clamp(2rem, 3vw, 3rem)', fontWeight: 700 }}
             >
-              {producto.precio > 0 ? `S/${producto.precio}` : 'Consultar precio'}
+              {precio}
             </p>
 
-            {/* Tagline */}
+            {/* Tagline — aparece al 30 % */}
             <p
               ref={taglineRef}
               className="will-change-transform font-black text-mekra-black leading-snug"
-              style={{ fontSize: 'clamp(1.1rem, 2vw, 1.5rem)' }}
+              style={{ fontSize: 'clamp(1.1rem, 1.8vw, 1.6rem)' }}
             >
-              Personalizado con su foto
+              Personalizado con foto a elección
             </p>
 
-            {/* Subtítulo */}
+            {/* Subtítulo — aparece al 45 % */}
             <p
               ref={subtitleRef}
-              className="will-change-transform text-mekra-black/60 leading-relaxed"
-              style={{ fontSize: '1rem', color: '#666' }}
+              className="will-change-transform leading-relaxed"
+              style={{ fontSize: '1rem', color: '#666666' }}
             >
               Envíanos la foto y nosotros hacemos el resto
             </p>
 
-            {/* Botón WhatsApp */}
+            {/* Botón WhatsApp — aparece al 60 % */}
             <a
               ref={btnRef}
-              href={WA_URL}
+              href={waUrl(producto.nombre)}
               target="_blank"
               rel="noopener noreferrer"
-              className="will-change-transform inline-flex items-center gap-2.5 px-8 py-4 bg-mekra-orange text-mekra-white font-black rounded-full text-sm sm:text-base transition-all duration-200 hover:scale-[1.04] active:scale-[0.98] shadow-lg shadow-mekra-orange/25"
+              className="will-change-transform self-start inline-flex items-center gap-2.5 px-8 py-4 bg-mekra-orange text-mekra-white font-black rounded-full text-sm sm:text-base transition-all duration-200 hover:scale-[1.04] active:scale-[0.98] shadow-lg shadow-mekra-orange/25"
             >
               <IconWhatsApp />
               Pedir ahora →
@@ -280,22 +289,24 @@ function CamaraEstatica({ producto }) {
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-12 md:gap-16">
           {midSrc && (
             <div className="flex-1 flex items-center justify-center">
-              <img src={midSrc} alt={producto.nombre} className="h-72 sm:h-96 w-auto" />
+              <img src={midSrc} alt={producto.nombre} className="h-72 sm:h-96 w-auto object-contain" />
             </div>
           )}
           <div className="flex-1 flex flex-col gap-5">
-            <h1 className="font-extrabold text-mekra-black tracking-tight text-4xl sm:text-5xl leading-tight">
+            <h1 className="font-extrabold text-mekra-black tracking-tight leading-tight" style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)', fontWeight: 800 }}>
               {producto.nombre}
             </h1>
-            <p className="font-bold text-mekra-orange text-3xl">
+            <p className="font-bold text-mekra-orange" style={{ fontSize: 'clamp(2rem, 3vw, 3rem)' }}>
               {producto.precio > 0 ? `S/${producto.precio}` : 'Consultar precio'}
             </p>
-            <p className="font-black text-mekra-black text-xl">Personalizado con su foto</p>
-            <p className="text-mekra-black/60 leading-relaxed">
+            <p className="font-black text-mekra-black" style={{ fontSize: '1.4rem' }}>
+              Personalizado con foto a elección
+            </p>
+            <p className="leading-relaxed" style={{ color: '#666666' }}>
               Envíanos la foto y nosotros hacemos el resto
             </p>
             <a
-              href={WA_URL}
+              href={waUrl(producto.nombre)}
               target="_blank"
               rel="noopener noreferrer"
               className="self-start inline-flex items-center gap-2.5 px-8 py-4 bg-mekra-orange text-mekra-white font-black rounded-full text-base transition-all duration-200 hover:brightness-110"
