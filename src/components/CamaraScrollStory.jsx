@@ -306,14 +306,14 @@ function CamaraAnimada({ producto }) {
             {/* Imágenes de color estáticas — reemplazan al canvas en la fase picker */}
             <div
               ref={colorOverlayRef}
-              className="absolute inset-0 pointer-events-none"
+              className="absolute inset-0 pointer-events-none pb-2 md:pb-0"
             >
               {Object.entries(COLOR_IMAGES).map(([color, src]) => (
                 <img
                   key={color}
                   src={src}
                   alt={`Cámara ${COLOR_LABELS[color]}`}
-                  className="absolute inset-0 w-full h-full object-contain"
+                  className="absolute top-0 left-0 right-0 w-full h-auto max-h-[45vh] object-contain md:bottom-0 md:h-full md:max-h-none"
                   style={{ opacity: activeColor === color ? 1 : 0, transition: 'opacity 0.3s ease' }}
                 />
               ))}
