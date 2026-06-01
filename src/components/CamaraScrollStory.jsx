@@ -66,17 +66,19 @@ export default function CamaraScrollStory({ producto }) {
 // ── ANIMADA ───────────────────────────────────────────────────────────────────
 
 function CamaraAnimada({ producto }) {
-  const wrapperRef         = useRef(null)
-  const canvasRef          = useRef(null)
-  const canvasContainerRef = useRef(null)
-  const storyTextsRef      = useRef(null)
-  const pickerPanelRef     = useRef(null)  // sibling del sticky, fuera del story zone
-  const priceRef           = useRef(null)
-  const taglineRef         = useRef(null)
-  const subtitleRef        = useRef(null)
-  const imgsRef            = useRef([])
-  const currentIndexRef    = useRef(0)
-  const rafIdRef           = useRef(null)
+  const wrapperRef            = useRef(null)
+  const canvasRef             = useRef(null)
+  const canvasContainerRef    = useRef(null)
+  const storyTextsRef         = useRef(null)
+  const pickerPanelRef        = useRef(null)   // sibling del sticky, fuera del story zone
+  const pickerImgContainerRef = useRef(null)   // contenedor de imágenes de color
+  const transitionFiredRef    = useRef(false)  // evita re-disparar la transición
+  const priceRef              = useRef(null)
+  const taglineRef            = useRef(null)
+  const subtitleRef           = useRef(null)
+  const imgsRef               = useRef([])
+  const currentIndexRef       = useRef(0)
+  const rafIdRef              = useRef(null)
 
   const [loaded,      setLoaded]      = useState(false)
   const [activeColor, setActiveColor] = useState('negro')
@@ -151,11 +153,17 @@ function CamaraAnimada({ producto }) {
     gsap.ticker.add(lenisRaf)
     gsap.ticker.lagSmoothing(0)
 
+    // Resetea el flag de transición en cada montaje
+    transitionFiredRef.current = false
+
     const gCtx = gsap.context(() => {
       gsap.set([priceRef.current, taglineRef.current, subtitleRef.current], { opacity: 0, y: 40 })
-      gsap.set(pickerPanelRef.current, { opacity: 0, pointerEvents: 'none' })
+      // Picker: empieza oculto y desplazado hacia abajo
+      gsap.set(pickerPanelRef.current, { opacity: 0, y: 60, pointerEvents: 'none' })
+      // Imagen de cámara: empieza ligeramente reducida
+      gsap.set(pickerImgContainerRef.current, { scale: 0.9 })
 
-      // Frames + ocultar canvas al terminar el scroll
+      // Frames + ocultar canvas + disparar transición coordinada
       ScrollTrigger.create({
         trigger: wrapper,
         start:   'top top',
@@ -163,20 +171,60 @@ function CamaraAnimada({ producto }) {
         onUpdate(self) {
           canvas.style.visibility = self.progress >= 0.98 ? 'hidden' : 'visible'
 
+          // Dibuja frames (capeado en el 70 % del scroll)
           const frameP = Math.min(self.progress / 0.70, 1)
           const idx    = Math.min(Math.floor(frameP * imgs.length), imgs.length - 1)
-          if (rafIdRef.current) return
-          rafIdRef.current = requestAnimationFrame(() => {
-            if (idx !== currentIndexRef.current) {
-              currentIndexRef.current = idx
-              drawFrame(idx)
-            }
-            rafIdRef.current = null
-          })
+          if (!rafIdRef.current) {
+            rafIdRef.current = requestAnimationFrame(() => {
+              if (idx !== currentIndexRef.current) {
+                currentIndexRef.current = idx
+                drawFrame(idx)
+              }
+              rafIdRef.current = null
+            })
+          }
+
+          // ── DISPARA la transición al llegar al 82 % ──────────────────────
+          if (self.progress >= 0.82 && !transitionFiredRef.current) {
+            transitionFiredRef.current = true
+
+            // Canvas: sale hacia la izquierda + se reduce + desaparece
+            gsap.to(canvasContainerRef.current, {
+              x: '-10%', scale: 0.85, opacity: 0,
+              duration: 0.6, ease: 'power2.inOut', overwrite: 'auto',
+            })
+
+            // Picker: entra desde abajo con delay
+            gsap.to(pickerPanelRef.current, {
+              y: 0, opacity: 1, pointerEvents: 'auto',
+              duration: 0.6, ease: 'power2.out', delay: 0.2, overwrite: 'auto',
+            })
+
+            // Imagen cámara: escala de 0.9 → 1 sincronizada con el picker
+            gsap.to(pickerImgContainerRef.current, {
+              scale: 1,
+              duration: 0.6, ease: 'power2.out', delay: 0.2, overwrite: 'auto',
+            })
+          }
+
+          // ── REVIERTE si el usuario sube antes del 78 % ───────────────────
+          if (self.progress < 0.78 && transitionFiredRef.current) {
+            transitionFiredRef.current = false
+
+            gsap.to(canvasContainerRef.current, {
+              x: 0, scale: 1, opacity: 1,
+              duration: 0.4, ease: 'power2.out', overwrite: 'auto',
+            })
+            gsap.to(pickerPanelRef.current, {
+              y: 60, opacity: 0, pointerEvents: 'none',
+              duration: 0.3, ease: 'power2.in', overwrite: 'auto',
+            })
+            gsap.set(pickerImgContainerRef.current, { scale: 0.9 })
+          }
         },
       })
 
-      // Timeline principal scrubbed
+      // Timeline principal scrubbed (solo story texts, 0.0–1.0)
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: wrapper,
@@ -197,17 +245,13 @@ function CamaraAnimada({ producto }) {
       // Pausa textos estáticos hasta 0.65
       tl.to({}, { duration: 0.26 }, 0.39)
 
-      // Paso 1: story texts desaparecen hacia arriba (0.65–0.73)
+      // Story texts desaparecen hacia arriba (0.65–0.73)
       tl.to(storyTextsRef.current, {
         opacity: 0, y: -50, duration: 0.08, ease: 'power2.in',
       }, 0.65)
 
-      // Paso 2: picker fade-in (0.82–0.90), opaco antes del final del scroll
-      tl.to(pickerPanelRef.current, {
-        opacity: 1, pointerEvents: 'auto', duration: 0.08, ease: 'power2.out',
-      }, 0.82)
-      // Padding para que el timeline llegue a 1.0
-      tl.to({}, { duration: 0.10 }, 0.90)
+      // Padding hasta 1.0 (mantiene el scrub activo en toda la zona)
+      tl.to({}, { duration: 0.27 }, 0.73)
 
       // Reveals de secciones inferiores
       gsap.utils.toArray('.reveal-up').forEach(el => {
@@ -338,26 +382,23 @@ function CamaraAnimada({ producto }) {
           <div className="h-full flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
 
             {/* Cámara estática — imagen según color activo */}
-            <div className="shrink-0 flex items-center justify-center py-4 px-4 md:w-[40%] md:h-full md:py-6 md:px-6">
+            <div
+              ref={pickerImgContainerRef}
+              className="shrink-0 flex items-center justify-center py-4 px-4 md:w-[45%] md:h-full md:py-6 md:px-8"
+            >
               {Object.entries(COLOR_IMAGES).map(([color, src]) => (
                 <img
                   key={color}
                   src={src}
                   alt={`Cámara ${COLOR_LABELS[color]}`}
-                  className={`object-contain md:w-full md:h-full md:max-h-full${activeColor === color ? '' : ' hidden'}`}
-                  style={{
-                    display:   activeColor === color ? 'block' : 'none',
-                    maxHeight: '50vh',
-                    width:     'auto',
-                    objectFit: 'contain',
-                    margin:    '0 auto',
-                  }}
+                  className="w-auto object-contain block mx-auto max-h-[50vh] md:h-[70vh] md:max-h-[70vh]"
+                  style={{ display: activeColor === color ? 'block' : 'none' }}
                 />
               ))}
             </div>
 
             {/* Información del producto */}
-            <div className="flex flex-col items-center md:items-start justify-center px-8 md:px-14 gap-5 pb-8 md:pb-0 md:w-[60%]">
+            <div className="flex flex-col items-center md:items-start justify-center px-8 md:px-12 gap-5 pb-8 md:pb-0 md:w-[55%]">
 
               {/* Título */}
               <p
