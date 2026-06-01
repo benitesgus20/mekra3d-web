@@ -2,9 +2,14 @@
  * CamaraScrollStory — scroll storytelling + transición + color picker
  *
  * Fases de scroll (600dvh total):
- * 0 %–65 %  → Scroll story: frames animados, textos aparecen progresivamente
- * 65%–85%  → Transición: cámara se desplaza al centro con scrub
- * 85%–100% → Color picker: swatches, etiqueta, botón "Pedir ahora"
+ * 0 %–65 %  → Story: frames animados, textos aparecen progresivamente
+ * 65%–73%  → PASO 1: storyTexts hace fade-out + slide-up
+ * 70%–85%  → PASO 2 (desktop): canvas se estrecha 55%→40%
+ * 82%–100% → PASO 3: pickerPanel fade-in (columna derecha 60%)
+ *
+ * Layout desktop final (picker):
+ *   [  cámara estática  ][  título · precio · colores · botón  ]
+ *        left 40%                   right 60%
  */
 
 import { useRef, useEffect, useLayoutEffect, useState } from 'react'
@@ -56,22 +61,22 @@ export default function CamaraScrollStory({ producto }) {
 // ── ANIMADA ───────────────────────────────────────────────────────────────────
 
 function CamaraAnimada({ producto }) {
-  const wrapperRef      = useRef(null)
-  const canvasRef       = useRef(null)
-  const containerRef    = useRef(null)   // columna cámara (anima x → centro)
-  const colorOverlayRef = useRef(null)   // imgs de color sobre el canvas
-  const pickerRef       = useRef(null)   // UI swatches + botón
-  const priceRef        = useRef(null)
-  const taglineRef      = useRef(null)
-  const subtitleRef     = useRef(null)
-  const imgsRef         = useRef([])
-  const currentIndexRef = useRef(0)
-  const rafIdRef        = useRef(null)
+  const wrapperRef         = useRef(null)
+  const canvasRef          = useRef(null)
+  const canvasContainerRef = useRef(null)  // izq.; anima width 55%→40% en desktop
+  const colorOverlayRef    = useRef(null)  // imgs color sobre canvas; fade-in en transición
+  const storyTextsRef      = useRef(null)  // col. derecha story; fade-out como unidad
+  const pickerPanelRef     = useRef(null)  // col. derecha picker (60%); fade-in
+  const priceRef           = useRef(null)
+  const taglineRef         = useRef(null)
+  const subtitleRef        = useRef(null)
+  const imgsRef            = useRef([])
+  const currentIndexRef    = useRef(0)
+  const rafIdRef           = useRef(null)
 
   const [loaded,      setLoaded]      = useState(false)
   const [activeColor, setActiveColor] = useState('negro')
 
-  // Precarga los 25 frames
   useEffect(() => {
     let n = 0
     const imgs = FRAME_SRCS.map(src => {
@@ -89,14 +94,13 @@ function CamaraAnimada({ producto }) {
     if (!loaded) return
     const wrapper   = wrapperRef.current
     const canvas    = canvasRef.current
-    const container = containerRef.current
+    const container = canvasContainerRef.current
     if (!wrapper || !canvas || !container) return
 
     const ctx  = canvas.getContext('2d')
     const imgs = imgsRef.current
     const dpr  = window.devicePixelRatio || 1
 
-    // Dibuja el frame idx con letterbox/pillarbox en coordenadas físicas
     function drawFrame(idx) {
       const img = imgs[Math.max(0, Math.min(idx, imgs.length - 1))]
       if (!img?.complete || !canvas.width || !canvas.height) return
@@ -121,12 +125,10 @@ function CamaraAnimada({ producto }) {
       ctx.drawImage(img, offsetX, offsetY, drawW, drawH)
     }
 
-    // Inicializa buffer en píxeles físicos (sin setTransform — drawFrame usa coords físicas)
     canvas.width  = Math.round(container.clientWidth  * dpr)
     canvas.height = Math.round(container.clientHeight * dpr)
     drawFrame(0)
 
-    // ResizeObserver: re-dimensiona y redibuja cuando cambia el contenedor
     const ro = new ResizeObserver(([entry]) => {
       const { width: w, height: h } = entry.contentRect
       canvas.width  = Math.round(w * dpr)
@@ -135,7 +137,6 @@ function CamaraAnimada({ producto }) {
     })
     ro.observe(container)
 
-    // Lenis smooth scroll
     const lenis = new Lenis({
       duration: 1.4,
       easing:   t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -146,13 +147,15 @@ function CamaraAnimada({ producto }) {
     gsap.ticker.add(lenisRaf)
     gsap.ticker.lagSmoothing(0)
 
+    const isDesktop = window.innerWidth >= 768
+
     const gCtx = gsap.context(() => {
       // Estados iniciales
       gsap.set([priceRef.current, taglineRef.current, subtitleRef.current], { opacity: 0, y: 40 })
       gsap.set(colorOverlayRef.current, { opacity: 0 })
-      gsap.set(pickerRef.current, { opacity: 0, y: 20, pointerEvents: 'none' })
+      gsap.set(pickerPanelRef.current,  { opacity: 0, y: 20, pointerEvents: 'none' })
 
-      // ── Frames: dibuja según scroll, capeado en el 70 % ─────────────────────
+      // Frames: dibuja según scroll, capeado en el 70 %
       ScrollTrigger.create({
         trigger: wrapper,
         start:   'top top',
@@ -171,7 +174,7 @@ function CamaraAnimada({ producto }) {
         },
       })
 
-      // ── Timeline principal (scrubbed, cubre los 600 dvh) ─────────────────────
+      // Timeline principal scrubbed (cubre los 600 dvh)
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: wrapper,
@@ -181,7 +184,7 @@ function CamaraAnimada({ producto }) {
         },
       })
 
-      // Textos del storytelling aparecen entre el 10 % y el 40 % del scroll
+      // STORY: textos aparecen (0.10 → 0.39)
       tl.fromTo(priceRef.current,
         { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.05, ease: 'power2.out' }, 0.10)
       tl.fromTo(taglineRef.current,
@@ -192,22 +195,32 @@ function CamaraAnimada({ producto }) {
       // Pausa con textos estáticos hasta el 65 %
       tl.to({}, { duration: 0.26 }, 0.39)
 
-      // Transición 65 %→ 85 %: cámara se anima al centro con scrub
-      tl.to(containerRef.current, {
-        x:        () => (window.innerWidth - containerRef.current.offsetWidth) / 2,
-        ease:     'power2.inOut',
-        duration: 0.20,
+      // PASO 1 (0.65–0.73): story texts desaparecen hacia arriba
+      tl.to(storyTextsRef.current, {
+        opacity:  0,
+        y:        -50,
+        duration: 0.08,
+        ease:     'power2.in',
       }, 0.65)
 
-      // Color overlay fade in mientras la cámara viaja (72 %→ 82 %)
+      // PASO 2 (0.70–0.85, solo desktop): canvas se estrecha 55%→40%
+      if (isDesktop) {
+        tl.to(canvasContainerRef.current, {
+          width:    '40%',
+          ease:     'power2.inOut',
+          duration: 0.15,
+        }, 0.70)
+      }
+
+      // Color overlay fade-in mientras la cámara se reposiciona (0.72–0.84)
       tl.to(colorOverlayRef.current, {
         opacity:  1,
-        duration: 0.10,
+        duration: 0.12,
         ease:     'power2.out',
       }, 0.72)
 
-      // Color picker UI aparece al final de la transición (82 %→ 100 %)
-      tl.to(pickerRef.current, {
+      // PASO 3 (0.82–1.0): picker panel aparece en la derecha
+      tl.to(pickerPanelRef.current, {
         opacity:       1,
         y:             0,
         pointerEvents: 'auto',
@@ -240,7 +253,7 @@ function CamaraAnimada({ producto }) {
 
   return (
     <>
-      {/* Breadcrumb — fuera del scroll zone */}
+      {/* Breadcrumb */}
       <div className="max-w-7xl mx-auto px-6 pt-5">
         <Link
           to="/catalogo"
@@ -253,14 +266,21 @@ function CamaraAnimada({ producto }) {
         </Link>
       </div>
 
-      {/* Scroll zone: 600 dvh */}
+      {/* Scroll zone 600dvh */}
       <div ref={wrapperRef} className="relative h-[600dvh]">
-        <div className="sticky top-16 h-[calc(100dvh-4rem)] bg-mekra-white flex flex-col md:flex-row overflow-hidden relative">
+        {/*
+          Sticky container.
+          Mobile:  flex-col  — canvas arriba (55dvh), textos abajo en flujo normal
+          Desktop: block     — 4 paneles absolutamente posicionados
+        */}
+        <div className="sticky top-16 h-[calc(100dvh-4rem)] bg-mekra-white overflow-hidden relative flex flex-col md:block">
 
-          {/* ── CÁMARA — columna izquierda; se desplaza al centro en la transición ── */}
+          {/* ── PANEL 1: Canvas — cámara animada (story) ──────────────────── */}
+          {/*  Mobile:  flex child, h-[55dvh], ancho completo                 */}
+          {/*  Desktop: absolute left-0, h-full, w: 55%→40% (GSAP)            */}
           <div
-            ref={containerRef}
-            className="relative h-[55dvh] md:h-full md:w-[55%] bg-mekra-white"
+            ref={canvasContainerRef}
+            className="relative shrink-0 h-[55dvh] w-full md:absolute md:top-0 md:left-0 md:h-full md:w-[55%]"
           >
             {!loaded && (
               <div className="absolute inset-0 flex items-center justify-center">
@@ -268,7 +288,7 @@ function CamaraAnimada({ producto }) {
               </div>
             )}
 
-            {/* Canvas — frame animado por scroll */}
+            {/* Canvas: frames de scroll story */}
             <canvas
               ref={canvasRef}
               style={{
@@ -283,7 +303,7 @@ function CamaraAnimada({ producto }) {
               }}
             />
 
-            {/* Overlay de imágenes de color — fade in al llegar al centro */}
+            {/* Imágenes de color estáticas — reemplazan al canvas en la fase picker */}
             <div
               ref={colorOverlayRef}
               className="absolute inset-0 pointer-events-none"
@@ -292,19 +312,23 @@ function CamaraAnimada({ producto }) {
                 <img
                   key={color}
                   src={src}
-                  alt={`Cámara color ${COLOR_LABELS[color]}`}
+                  alt={`Cámara ${COLOR_LABELS[color]}`}
                   className="absolute inset-0 w-full h-full object-contain"
-                  style={{
-                    opacity:    activeColor === color ? 1 : 0,
-                    transition: 'opacity 0.3s ease',
-                  }}
+                  style={{ opacity: activeColor === color ? 1 : 0, transition: 'opacity 0.3s ease' }}
                 />
               ))}
             </div>
           </div>
 
-          {/* ── TEXTOS — columna derecha; quedan estáticos en la transición ── */}
-          <div className="flex-1 md:w-[45%] flex flex-col justify-center px-8 md:pl-10 md:pr-20 gap-5 md:gap-8">
+          {/* ── PANEL 2: Story texts — columna derecha del storytelling ───── */}
+          {/*  Mobile:  flex child, flex-1, texto centrado                    */}
+          {/*  Desktop: absolute right-0, h-full, w-[45%]                     */}
+          {/*  Animación: fade-out + slide-up en el paso 1 de la transición   */}
+          <div
+            ref={storyTextsRef}
+            className="flex-1 flex flex-col justify-center px-8 gap-5 md:absolute md:top-0 md:right-0 md:bottom-auto md:left-auto md:h-full md:w-[45%] md:px-10 md:pr-20 md:gap-8"
+            style={{ willChange: 'opacity, transform' }}
+          >
             <h1
               className="font-extrabold text-mekra-black leading-tight tracking-tight text-balance"
               style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)', fontWeight: 800 }}
@@ -337,39 +361,63 @@ function CamaraAnimada({ producto }) {
             </p>
           </div>
 
-          {/* ── COLOR PICKER — aparece centrado cuando la cámara llega al centro ── */}
+          {/* ── PANEL 3: Picker panel — columna derecha del color picker ──── */}
+          {/*  Mobile:  absolute bottom-0, ancho completo, bg blanco          */}
+          {/*  Desktop: absolute right-0, h-full, w-[60%]                     */}
+          {/*  Aparece en PASO 3 de la transición (fade-in desde abajo)       */}
           <div
-            ref={pickerRef}
-            className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 z-10"
+            ref={pickerPanelRef}
+            className="absolute bottom-0 left-0 w-full bg-mekra-white px-8 pb-10 pt-6 flex flex-col items-center gap-5 z-10 md:top-0 md:bottom-auto md:left-auto md:right-0 md:h-full md:w-[60%] md:items-start md:justify-center md:px-14 md:pb-0 md:pt-0"
             style={{ willChange: 'opacity, transform' }}
           >
-            {/* 3 círculos de color */}
-            <div className="flex items-center" style={{ gap: 16 }}>
-              {Object.entries(COLOR_SWATCHES).map(([color, bg]) => (
-                <button
-                  key={color}
-                  onClick={() => setActiveColor(color)}
-                  aria-label={`Color ${COLOR_LABELS[color]}`}
-                  className="rounded-full transition-all duration-150 hover:scale-110 active:scale-95"
-                  style={{
-                    width:         48,
-                    height:        48,
-                    backgroundColor: bg,
-                    outline:       activeColor === color
-                      ? '2px solid #FF6B00'
-                      : '2px solid transparent',
-                    outlineOffset: 2,
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Etiqueta de color activo */}
-            <p style={{ color: '#666666', fontSize: '0.9rem' }}>
-              Color: {COLOR_LABELS[activeColor]}
+            {/* Título */}
+            <p
+              className="font-extrabold text-mekra-black leading-tight tracking-tight text-balance md:text-left text-center"
+              style={{ fontSize: '1.8rem', fontWeight: 800 }}
+            >
+              {producto.nombre}
             </p>
 
-            {/* Botón "Pedir ahora" — href dinámico según color */}
+            {/* Precio */}
+            <p
+              className="font-bold tabular-nums leading-none"
+              style={{ fontSize: '1.5rem', fontWeight: 700, color: '#FF6B00' }}
+            >
+              {precio}
+            </p>
+
+            {/* Descripción */}
+            <p style={{ fontSize: '1rem', color: '#666666' }}>
+              Personalizado con foto a elección
+            </p>
+
+            {/* Selector de color */}
+            <div className="flex flex-col items-center md:items-start gap-3">
+              <div className="flex items-center" style={{ gap: 16 }}>
+                {Object.entries(COLOR_SWATCHES).map(([color, bg]) => (
+                  <button
+                    key={color}
+                    onClick={() => setActiveColor(color)}
+                    aria-label={`Color ${COLOR_LABELS[color]}`}
+                    className="rounded-full transition-all duration-150 hover:scale-110 active:scale-95"
+                    style={{
+                      width:           48,
+                      height:          48,
+                      backgroundColor: bg,
+                      outline:         activeColor === color ? '2px solid #FF6B00' : '2px solid transparent',
+                      outlineOffset:   2,
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Etiqueta color activo */}
+              <p style={{ fontSize: '0.9rem', color: '#666666' }}>
+                Color: {COLOR_LABELS[activeColor]}
+              </p>
+            </div>
+
+            {/* Botón "Pedir ahora" */}
             <a
               href={waUrlColor(activeColor)}
               target="_blank"
@@ -380,6 +428,7 @@ function CamaraAnimada({ producto }) {
               Pedir ahora →
             </a>
           </div>
+
         </div>
       </div>
     </>
@@ -418,10 +467,7 @@ function CamaraEstatica({ producto }) {
             >
               {producto.nombre}
             </h1>
-            <p
-              className="font-bold text-mekra-orange"
-              style={{ fontSize: 'clamp(2rem, 3vw, 3rem)' }}
-            >
+            <p className="font-bold text-mekra-orange" style={{ fontSize: 'clamp(2rem, 3vw, 3rem)' }}>
               {producto.precio > 0 ? `S/${producto.precio}` : 'Consultar precio'}
             </p>
             <p className="font-black text-mekra-black" style={{ fontSize: '1.4rem' }}>
