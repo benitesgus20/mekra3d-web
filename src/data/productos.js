@@ -8,7 +8,7 @@
 export const productos = [
   {
     id: 'llavero-camara-papa',
-    nombre: 'Cámara de los Recuerdos',
+    nombre: 'Cámara de los Recuerdos - Edición Día del Padre',
     categoria: 'Papa',
     subcategoria: 'Día del Padre',
     estilo: 'Clásico',
