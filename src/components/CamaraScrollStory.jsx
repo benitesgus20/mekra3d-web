@@ -172,6 +172,8 @@ function CamaraAnimada({ producto }) {
       gsap.set([priceRef.current, taglineRef.current, subtitleRef.current], { opacity: 0, y: 40 })
       gsap.set(pickerPanelRef.current, { opacity: 0, y: 30, pointerEvents: 'none' })
       gsap.set(canvasContainerRef.current, { transformOrigin: 'left center' })
+      // Color overlay oculto hasta que el picker aparece (65% del scroll)
+      gsap.set(colorOverlayRef.current, { opacity: 0 })
 
       // Avance de frames + lazy load de color PNGs
       ScrollTrigger.create({
@@ -223,6 +225,8 @@ function CamaraAnimada({ producto }) {
       tl.to(storyTextsRef.current, {
         opacity: 0, y: -50, duration: 0.08, ease: 'power2.in',
       }, 0.60)
+      // Color overlay aparece junto con el picker (al 65%) y desaparece al volver
+      tl.to(colorOverlayRef.current, { opacity: 1, duration: 0.05, ease: 'none' }, 0.65)
       tl.to(canvasContainerRef.current, {
         scale: 0.75, ease: 'power2.inOut', duration: 0.286,
       }, 0.714)
@@ -336,21 +340,21 @@ function CamaraAnimada({ producto }) {
             <p
               ref={priceRef}
               className="will-change-transform font-bold text-mekra-orange tabular-nums leading-none"
-              style={{ fontSize: 'clamp(2rem, 3vw, 3rem)', fontWeight: 700 }}
+              style={{ fontSize: 'clamp(2rem, 3vw, 3rem)', fontWeight: 700, opacity: 0, transform: 'translateY(40px)' }}
             >
               {precio}
             </p>
             <p
               ref={taglineRef}
               className="will-change-transform font-black text-mekra-black leading-snug"
-              style={{ fontSize: 'clamp(1.1rem, 1.8vw, 1.6rem)' }}
+              style={{ fontSize: 'clamp(1.1rem, 1.8vw, 1.6rem)', opacity: 0, transform: 'translateY(40px)' }}
             >
               Personalizado con foto a elección
             </p>
             <p
               ref={subtitleRef}
               className="will-change-transform leading-relaxed"
-              style={{ fontSize: '1rem', color: '#666666' }}
+              style={{ fontSize: '1rem', color: '#666666', opacity: 0, transform: 'translateY(40px)' }}
             >
               Tu papá lo va a guardar para siempre 📸
             </p>
@@ -360,7 +364,7 @@ function CamaraAnimada({ producto }) {
           <div
             ref={pickerPanelRef}
             className="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-5 px-8 pb-10 pt-4 bg-mekra-white md:top-0 md:bottom-auto md:left-[42%] md:right-0 md:h-full md:items-start md:justify-center md:px-12 md:pb-0 md:pt-0 md:bg-transparent"
-            style={{ willChange: 'opacity, transform' }}
+            style={{ willChange: 'opacity, transform', opacity: 0, transform: 'translateY(30px)', pointerEvents: 'none' }}
           >
             <p
               className="font-extrabold text-mekra-black leading-tight tracking-tight text-center md:text-left"
