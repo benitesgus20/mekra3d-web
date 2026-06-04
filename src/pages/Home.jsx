@@ -64,7 +64,7 @@ function SeccionEvento() {
   return (
     <section className="bg-mekra-white min-h-[calc(100dvh-4rem)] flex flex-col items-center justify-center text-center px-6 py-14 sm:py-16">
       <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-mekra-black/40 mb-5">
-        Hasta el 15 de junio
+        Hasta el 21 de junio
       </p>
       <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-mekra-black tracking-tight leading-[1.02] text-balance">
         Día del Padre 2026

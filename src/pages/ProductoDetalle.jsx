@@ -34,6 +34,8 @@ function Detalle({ producto }) {
     return (
       <main className="bg-mekra-white">
         <CamaraScrollStory producto={producto} />
+        <BandaConfianza />
+        <ComoFunciona />
         <Especificaciones producto={producto} />
         <CtaFinal producto={producto} />
       </main>
@@ -181,24 +183,77 @@ function HistoriaEstatica({ producto }) {
   )
 }
 
-// ── FICHA TÉCNICA ──────────────────────────────────────────────────
+// ── BANDA DE CONFIANZA (solo para cámara) ─────────────────────────
+
+function BandaConfianza() {
+  return (
+    <section className="bg-mekra-black py-7 px-6 border-t border-white/[0.05]">
+      <ul className="max-w-3xl mx-auto flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+        {[
+          { icono: '📍', texto: 'Hecho en Trujillo' },
+          { icono: '🎁', texto: '+23 regalos entregados' },
+          { icono: '⚡', texto: 'Listo en 2-3 días' },
+          { icono: '✓', texto: 'Reemplazamos si hay defecto' },
+        ].map(({ icono, texto }) => (
+          <li key={texto} className="flex items-center gap-2">
+            <span className="text-mekra-orange text-sm" aria-hidden>{icono}</span>
+            <span className="text-xs font-bold text-white/50">{texto}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+// ── CÓMO FUNCIONA (solo para cámara) ──────────────────────────────
+
+function ComoFunciona() {
+  return (
+    <section className="bg-mekra-black px-6 py-16 sm:py-20 border-t border-white/[0.05]">
+      <div className="max-w-3xl mx-auto">
+        <h2 className="reveal-up text-2xl sm:text-3xl font-black text-mekra-white tracking-tight mb-12">
+          Tres pasos y listo
+        </h2>
+        <ol className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6">
+          {[
+            { n: '1', titulo: 'Mándanos la foto', desc: 'La que más lo represente. Por WhatsApp en segundos.' },
+            { n: '2', titulo: 'Producimos en 2 horas', desc: 'Imprimimos, personalizamos y revisamos cada pieza.' },
+            { n: '3', titulo: 'Lo tienes en 2-3 días', desc: 'Delivery en Trujillo o courier a todo el Perú.' },
+          ].map(({ n, titulo, desc }) => (
+            <li key={n} className="reveal-up flex flex-col gap-3">
+              <span className="font-black text-mekra-orange tabular-nums leading-none" style={{ fontSize: '3rem' }}>
+                {n}
+              </span>
+              <div>
+                <p className="font-black text-mekra-white text-base leading-snug">{titulo}</p>
+                <p className="mt-2 text-sm text-white/45 leading-relaxed">{desc}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  )
+}
+
+// ── QUÉ INCLUYE / FICHA TÉCNICA ────────────────────────────────────
 
 function Especificaciones({ producto }) {
+  const esCamara = producto.id === 'llavero-camara-papa'
   const filas = (producto.detalles?.length > 0) ? producto.detalles : derivarDetalles(producto)
   if (filas.length === 0) return null
 
   return (
-    <section className="bg-[#0A0A0A] border-t border-white/10 px-6 py-20 sm:py-28">
+    <section className="bg-[#0A0A0A] border-t border-white/[0.05] px-6 py-16 sm:py-24">
       <div className="max-w-3xl mx-auto">
-        <p className="reveal-up text-[11px] font-black uppercase tracking-[0.3em] text-mekra-orange">Ficha técnica</p>
-        <h2 className="reveal-up mt-3 text-2xl sm:text-3xl font-black tracking-tight text-mekra-white">
-          Cada detalle, especificado
+        <h2 className="reveal-up text-2xl sm:text-3xl font-black tracking-tight text-mekra-white mb-10">
+          {esCamara ? '¿Qué incluye?' : 'Ficha técnica'}
         </h2>
-        <dl className="reveal-up mt-10 divide-y divide-white/10">
+        <dl className="reveal-up divide-y divide-white/[0.07]">
           {filas.map((f, i) => (
             <div key={i} className="flex items-baseline justify-between gap-6 py-4">
-              <dt className="text-xs sm:text-sm font-bold uppercase tracking-widest text-white/40">{f.etiqueta}</dt>
-              <dd className="text-right text-base sm:text-lg font-black text-mekra-white">{f.valor}</dd>
+              <dt className="text-sm font-bold text-white/40">{f.etiqueta}</dt>
+              <dd className="text-right text-base font-black text-mekra-white">{f.valor}</dd>
             </div>
           ))}
         </dl>
@@ -219,6 +274,7 @@ function derivarDetalles(p) {
 // ── CTA FINAL ──────────────────────────────────────────────────────
 
 function CtaFinal({ producto }) {
+  const esCamara = producto.id === 'llavero-camara-papa'
   const { addItem, setIsOpen } = useCart()
   const [color, setColor] = useState(producto.colores[0] ?? null)
   const waLabel = producto.whatsapp_texto || 'Pedir por WhatsApp'
@@ -230,7 +286,7 @@ function CtaFinal({ producto }) {
     <section className="bg-mekra-orange px-6 py-24 sm:py-32">
       <div className="reveal-up max-w-3xl mx-auto text-center">
         <h2 className="text-4xl sm:text-5xl md:text-6xl font-black leading-[1.03] tracking-tight text-mekra-black text-balance">
-          Pídelo ahora
+          {esCamara ? 'El regalo que no olvidará' : 'Pídelo ahora'}
         </h2>
 
         {producto.colores.length > 0 && (
@@ -270,6 +326,12 @@ function CtaFinal({ producto }) {
             {waLabel}
           </a>
         </div>
+
+        {esCamara && (
+          <p className="mt-8 text-sm font-medium text-mekra-black/50">
+            Si llega con algún defecto de fabricación, lo rehacemos sin costo. Punto.
+          </p>
+        )}
       </div>
     </section>
   )
