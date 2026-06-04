@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { productos, siteInfo } from '../data'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import heroCamaraAbierta  from '../assets/hero-camara-abierta.png'
-import heroCamaraCerrada  from '../assets/hero-camara-cerrada.png'
+import heroCamaraAbierta from '../assets/hero-camara-abierta.png'
+import heroCamaraCerrada from '../assets/hero-camara-cerrada.png'
 
 const WA_PEDIR = `https://wa.me/${siteInfo.whatsapp}?text=${encodeURIComponent(
   'Hola! Quiero hacer un pedido en Mekra3D para el Día del Padre. ¿Me ayudan? 🧡'
@@ -17,10 +17,10 @@ const OCASIONES = [
 ]
 
 const PASOS = [
-  { n: '01', titulo: 'Tú eliges la foto',      desc: 'Mándanos la que más lo represente por WhatsApp.' },
-  { n: '02', titulo: 'Nosotros personalizamos', desc: 'Adaptamos cada pieza especialmente para él.' },
-  { n: '03', titulo: 'Revisamos todo',          desc: 'Cada regalo pasa por nuestras manos antes de salir.' },
-  { n: '04', titulo: 'Llega a tiempo',          desc: 'Delivery en Trujillo o courier a todo el Perú.' },
+  { n: '01', titulo: 'Tú eliges la foto',       desc: 'La que más lo represente. Por WhatsApp en segundos.' },
+  { n: '02', titulo: 'Nosotros personalizamos', desc: 'Cada pieza se adapta especialmente para él.' },
+  { n: '03', titulo: 'Revisamos todo',           desc: 'Ningún regalo sale sin pasar por nuestras manos.' },
+  { n: '04', titulo: 'Llega a tiempo',           desc: 'Delivery en Trujillo o courier a todo el Perú.' },
 ]
 
 const FAQS_HOME = [
@@ -28,7 +28,7 @@ const FAQS_HOME = [
   { pregunta: '¿Hacen envíos fuera de Trujillo?',      respuesta: 'Sí, enviamos a todo el Perú por Shalom u Olva Courier.' },
   { pregunta: '¿Puedo pedir un diseño personalizado?',  respuesta: 'Sí, escríbenos por WhatsApp y lo cotizamos sin compromiso.' },
   { pregunta: '¿Cómo realizo mi pago?',                respuesta: 'El pago es por transferencia, Yape o Plin antes de producir.' },
-  { pregunta: '¿Tienen garantía?',                     respuesta: 'Sí, si el producto llega con defecto lo reemplazamos sin costo.' },
+  { pregunta: '¿Tienen garantía?',                     respuesta: 'Si el producto llega con defecto lo reemplazamos sin costo.' },
 ]
 
 function waPedido(nombre) {
@@ -42,10 +42,11 @@ function diasHasta(fechaISO) {
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
 }
 
-// ── IMÁGENES DE PRODUCTO POR ID ────────────────────────────────────
 const IMAGEN_PRODUCTO = {
   'llavero-camara-papa': heroCamaraCerrada,
 }
+
+// ── ROOT ───────────────────────────────────────────────────────────
 
 export default function Home() {
   useDocumentTitle()
@@ -76,73 +77,88 @@ function SeccionEvento() {
   const dias = useMemo(() => diasHasta('2026-06-21'), [])
 
   return (
-    <section className="bg-mekra-white min-h-[calc(100dvh-4rem)] flex flex-col lg:flex-row items-center justify-center gap-10 lg:gap-16 px-6 py-14 sm:py-16 lg:px-12 lg:py-0">
+    <section className="relative bg-mekra-black min-h-[calc(100dvh-4rem)] flex items-center overflow-hidden">
 
-      {/* Texto */}
-      <div className="flex flex-col items-center text-center lg:items-start lg:text-left lg:max-w-xl lg:py-16">
+      {/* Halo de luz naranja detrás del producto */}
+      <div
+        className="absolute right-0 top-1/2 -translate-y-1/2 w-[60vw] max-w-2xl aspect-square rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(255,107,0,0.18) 0%, transparent 70%)' }}
+        aria-hidden
+      />
 
-        {/* Badge urgencia */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border border-mekra-orange/25 bg-mekra-orange/[0.07]">
-          <span className="text-xs font-black text-mekra-orange leading-none">
-            {dias > 0 ? `Quedan ${dias} días` : 'Último día'}
-          </span>
-          <span className="w-px h-3 bg-mekra-orange/30" aria-hidden />
-          <span className="text-xs font-bold text-mekra-orange/70 leading-none">21 de junio</span>
+      <div className="relative w-full max-w-7xl mx-auto px-6 lg:px-12 py-16 flex flex-col lg:flex-row items-center gap-10 lg:gap-0">
+
+        {/* ── TEXTO ── */}
+        <div className="flex-1 flex flex-col items-center text-center lg:items-start lg:text-left lg:pr-12 z-10">
+
+          {/* Badge */}
+          <div className="inline-flex items-center gap-0 rounded-full overflow-hidden border border-white/[0.12] mb-8">
+            <span className="bg-mekra-orange px-4 py-1.5 text-xs font-black text-white leading-none">
+              {dias > 0 ? `${dias} días` : 'Hoy'}
+            </span>
+            <span className="px-4 py-1.5 text-xs font-bold text-white/50 leading-none">
+              21 de junio
+            </span>
+          </div>
+
+          {/* Heading */}
+          <h1 className="font-black text-mekra-white leading-[0.9] tracking-tight text-balance"
+              style={{ fontSize: 'clamp(3.5rem, 9vw, 7rem)' }}>
+            Día del<br />
+            Padre<br />
+            <span className="text-mekra-orange">2026</span>
+          </h1>
+
+          <p className="mt-6 text-mekra-white/45 text-base sm:text-lg max-w-xs lg:max-w-sm leading-relaxed">
+            El regalo que nunca olvidará
+          </p>
+
+          {/* Precio */}
+          <div className="mt-5 flex items-center gap-3 flex-wrap justify-center lg:justify-start">
+            <span className="text-mekra-white/35 text-sm font-bold">
+              Desde{' '}
+              <span className="text-mekra-orange font-black" style={{ fontSize: '1.5rem' }}>S/10</span>
+            </span>
+            <span className="w-px h-4 bg-white/15" aria-hidden />
+            <span className="text-mekra-white/30 text-xs font-bold">+23 regalos entregados</span>
+          </div>
+
+          {/* CTAs */}
+          <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            <Link
+              to="/#destacados"
+              className="inline-flex items-center justify-center px-8 py-4 bg-mekra-orange text-mekra-white font-black rounded-full text-sm transition-all duration-200 hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-mekra-orange/30"
+            >
+              Ver regalos
+            </Link>
+            <a
+              href={WA_PEDIR}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-white/20 text-mekra-white font-bold rounded-full text-sm transition-all duration-200 hover:bg-white/[0.06] hover:border-white/35 active:scale-[0.98]"
+            >
+              <IconWhatsApp />
+              Pedir ahora
+            </a>
+          </div>
+
+          <p className="mt-8 text-[10px] font-black uppercase tracking-[0.3em] text-mekra-white/20">
+            Hecho en Trujillo, Perú
+          </p>
         </div>
 
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-mekra-black tracking-tight leading-[1.02] text-balance">
-          Día del Padre 2026
-        </h1>
-
-        <p className="mt-4 text-lg sm:text-xl text-mekra-black/50 max-w-md lg:max-w-none text-balance">
-          El regalo que nunca olvidará
-        </p>
-
-        {/* Precio + social proof */}
-        <div className="mt-5 flex items-center gap-4 flex-wrap justify-center lg:justify-start">
-          <span className="text-mekra-black/40 text-sm font-bold">
-            Desde{' '}
-            <span className="text-mekra-orange font-black text-xl">S/10</span>
-          </span>
-          <span className="w-px h-4 bg-mekra-black/15" aria-hidden />
-          <span className="text-xs font-bold text-mekra-black/35">+23 regalos entregados</span>
+        {/* ── IMAGEN ── */}
+        <div className="relative flex-1 flex items-center justify-center lg:justify-end max-w-xs sm:max-w-sm lg:max-w-none lg:w-[45%]">
+          <img
+            src={heroCamaraAbierta}
+            alt="Cámara de los Recuerdos — llavero personalizado con foto para el Día del Padre"
+            className="w-full max-w-[340px] lg:max-w-[460px] h-auto object-contain"
+            style={{ filter: 'drop-shadow(0 30px 80px rgba(255,107,0,0.30)) drop-shadow(0 10px 30px rgba(0,0,0,0.5))' }}
+            loading="eager"
+          />
         </div>
 
-        {/* CTAs */}
-        <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-          <Link
-            to="/#destacados"
-            className="inline-flex items-center justify-center px-8 py-4 bg-mekra-black text-mekra-white font-black rounded-full text-sm transition-all duration-200 hover:scale-[1.03] active:scale-[0.99]"
-          >
-            Ver regalos
-          </Link>
-          <a
-            href={WA_PEDIR}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 border-2 border-mekra-black text-mekra-black font-black rounded-full text-sm transition-all duration-200 hover:bg-mekra-black hover:text-mekra-white active:scale-[0.99]"
-          >
-            <IconWhatsApp />
-            Pedir ahora
-          </a>
-        </div>
-
-        {/* Hecho en Trujillo */}
-        <p className="mt-6 text-xs text-mekra-black/30 font-bold uppercase tracking-widest">
-          Hecho en Trujillo, Perú
-        </p>
       </div>
-
-      {/* Imagen del producto */}
-      <div className="w-full max-w-xs sm:max-w-sm lg:max-w-md xl:max-w-lg shrink-0">
-        <img
-          src={heroCamaraAbierta}
-          alt="Cámara de los Recuerdos — llavero personalizado con foto"
-          className="w-full h-auto object-contain drop-shadow-2xl"
-          loading="eager"
-        />
-      </div>
-
     </section>
   )
 }
@@ -154,15 +170,16 @@ function SeccionDestacados({ items }) {
   const [grande, ...resto] = items
 
   return (
-    <section id="destacados" className="bg-[#F7F7F7] py-16 sm:py-24 scroll-mt-20 border-t border-mekra-black/[0.05]">
+    <section id="destacados" className="bg-mekra-white py-16 sm:py-24 scroll-mt-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+
         <div className="flex items-end justify-between mb-10 sm:mb-14 gap-4">
-          <h2 className="text-3xl sm:text-4xl font-black text-mekra-black tracking-tight">
-            Para el 21 de junio
+          <h2 className="text-3xl sm:text-4xl font-black text-mekra-black tracking-tight leading-tight">
+            Para el 21<br className="sm:hidden" /> de junio
           </h2>
           <Link
             to="/catalogo"
-            className="shrink-0 text-sm font-bold text-mekra-black/40 hover:text-mekra-orange transition-colors duration-150"
+            className="shrink-0 text-sm font-bold text-mekra-black/35 hover:text-mekra-orange transition-colors duration-150"
           >
             Ver todo ›
           </Link>
@@ -183,14 +200,15 @@ function CardDestacada({ producto, grande = false, className = '' }) {
   const imagenSrc = IMAGEN_PRODUCTO[producto.id] ?? producto.fotos?.[0] ?? null
 
   return (
-    <article className={`group flex flex-col bg-mekra-white rounded-2xl overflow-hidden border border-mekra-black/[0.06] transition-all duration-300 hover:shadow-xl hover:shadow-mekra-black/[0.08] hover:-translate-y-1 ${className}`}>
-      <Link to={`/producto/${producto.id}`} className={grande ? 'block flex-1 min-h-[260px]' : 'block'}>
-        <div className={`bg-[#F0F0F2] flex items-center justify-center overflow-hidden ${grande ? 'h-full min-h-[260px]' : 'aspect-[16/10]'}`}>
+    <article className={`group flex flex-col bg-white rounded-2xl overflow-hidden border border-mekra-black/[0.07] transition-all duration-300 hover:shadow-2xl hover:shadow-mekra-black/[0.1] hover:-translate-y-1 ${className}`}>
+
+      <Link to={`/producto/${producto.id}`} className={grande ? 'block flex-1 min-h-[280px]' : 'block'}>
+        <div className={`bg-[#F2F2F4] flex items-center justify-center overflow-hidden ${grande ? 'h-full min-h-[280px]' : 'aspect-[16/10]'}`}>
           {imagenSrc
             ? <img
                 src={imagenSrc}
                 alt={producto.nombre}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
               />
             : <IconCubo size={grande ? 84 : 48} />
           }
@@ -210,7 +228,7 @@ function CardDestacada({ producto, grande = false, className = '' }) {
         </div>
 
         {grande && producto.descripcion && (
-          <p className="text-sm text-mekra-black/45 leading-relaxed line-clamp-2">
+          <p className="text-sm text-mekra-black/40 leading-relaxed line-clamp-2">
             {producto.descripcion}
           </p>
         )}
@@ -237,25 +255,25 @@ function CardDestacada({ producto, grande = false, className = '' }) {
   )
 }
 
-// ── SECCIÓN 3 — POR OCASIÓN ────────────────────────────────────────
+// ── SECCIÓN 3 — OCASIÓN ────────────────────────────────────────────
 
 function SeccionOcasion() {
   return (
-    <section className="bg-mekra-white py-16 sm:py-24 border-t border-mekra-black/[0.06]">
+    <section className="bg-[#F5F5F7] py-16 sm:py-24 border-t border-mekra-black/[0.05]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-center text-3xl sm:text-4xl font-black text-mekra-black tracking-tight mb-10 sm:mb-14">
-          ¿Para quién es el regalo?
+        <h2 className="text-3xl sm:text-4xl font-black text-mekra-black tracking-tight mb-10 sm:mb-14">
+          ¿Para quién es<br className="sm:hidden" /> el regalo?
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           {OCASIONES.map(o => (
             <Link
               key={o.to + o.nombre}
               to={o.to}
-              className="group flex flex-col items-center text-center gap-3 rounded-2xl border border-mekra-black/10 bg-mekra-white px-6 py-8 sm:py-10 transition-all duration-200 hover:border-mekra-orange/30 hover:shadow-lg hover:shadow-mekra-black/[0.05] hover:-translate-y-0.5"
+              className="group flex flex-col items-center text-center gap-3 rounded-2xl bg-mekra-white border border-transparent px-6 py-8 sm:py-10 transition-all duration-200 hover:border-mekra-orange/25 hover:shadow-xl hover:shadow-mekra-black/[0.06] hover:-translate-y-0.5"
             >
               <span className="text-4xl sm:text-5xl leading-none">{o.emoji}</span>
               <span className="text-mekra-black font-black text-base sm:text-lg">{o.nombre}</span>
-              <span className="text-mekra-orange font-bold text-sm group-hover:opacity-70 transition-opacity duration-150">
+              <span className="text-mekra-orange font-bold text-sm opacity-70 group-hover:opacity-100 transition-opacity duration-150">
                 Ver regalos ›
               </span>
             </Link>
@@ -266,42 +284,35 @@ function SeccionOcasion() {
   )
 }
 
-// ── SECCIÓN 4 — SOBRE MEKRA3D ──────────────────────────────────────
+// ── SECCIÓN 4 — SOBRE ──────────────────────────────────────────────
 
 function SeccionSobre() {
   return (
     <section id="sobre" className="bg-mekra-black py-20 sm:py-28 scroll-mt-20">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
-        {/* Copy humano */}
-        <div className="max-w-2xl mb-14 sm:mb-18">
+        <div className="max-w-2xl mb-14">
           <h2 className="text-3xl sm:text-4xl font-black text-mekra-white tracking-tight leading-tight text-balance mb-5">
             Regalos que se guardan para siempre
           </h2>
-          <p className="text-mekra-white/50 text-base sm:text-lg leading-relaxed">
+          <p className="text-mekra-white/45 text-base sm:text-lg leading-relaxed">
             Somos Gustavo y Paty, en Trujillo. Cada regalo que hacemos lleva adentro algo que importa: la foto de un momento, el recuerdo de una persona. No hay dos iguales.
           </p>
         </div>
 
-        {/* 4 pasos — enfocados en la experiencia */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
           {PASOS.map(paso => (
             <div key={paso.n} className="flex flex-col gap-3">
-              <span className="font-black text-mekra-orange text-3xl sm:text-4xl tabular-nums leading-none">
+              <span className="font-black text-mekra-orange leading-none tabular-nums" style={{ fontSize: '2.5rem' }}>
                 {paso.n}
               </span>
               <div>
-                <p className="font-black text-mekra-white text-sm leading-snug mb-1.5">
-                  {paso.titulo}
-                </p>
-                <p className="text-mekra-white/35 text-xs leading-relaxed">
-                  {paso.desc}
-                </p>
+                <p className="font-black text-mekra-white text-sm leading-snug mb-2">{paso.titulo}</p>
+                <p className="text-mekra-white/30 text-xs leading-relaxed">{paso.desc}</p>
               </div>
             </div>
           ))}
         </div>
-
       </div>
     </section>
   )
@@ -332,7 +343,7 @@ function SeccionFAQ() {
 
         <Link
           to="/faq"
-          className="inline-flex items-center gap-2 text-xs font-bold text-white/30 hover:text-mekra-orange uppercase tracking-widest transition-colors duration-150"
+          className="inline-flex items-center gap-2 text-xs font-bold text-white/25 hover:text-mekra-orange uppercase tracking-widest transition-colors duration-150"
         >
           Ver todas las preguntas ›
         </Link>
@@ -351,7 +362,7 @@ function ItemFAQ({ faq, abierto, onToggle }) {
         aria-expanded={abierto}
         className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
       >
-        <span className={`text-sm font-bold leading-snug transition-colors duration-200 ${abierto ? 'text-white' : 'text-white/70'}`}>
+        <span className={`text-sm font-bold leading-snug transition-colors duration-200 ${abierto ? 'text-white' : 'text-white/65'}`}>
           {faq.pregunta}
         </span>
         <span className={`shrink-0 text-mekra-orange transition-transform duration-300 ${abierto ? 'rotate-180' : ''}`} aria-hidden>
@@ -359,7 +370,7 @@ function ItemFAQ({ faq, abierto, onToggle }) {
         </span>
       </button>
       <div className={`overflow-hidden transition-all duration-300 ease-in-out ${abierto ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
-        <p className="px-5 pb-5 text-sm text-white/40 leading-relaxed">{faq.respuesta}</p>
+        <p className="px-5 pb-5 text-sm text-white/35 leading-relaxed">{faq.respuesta}</p>
       </div>
     </div>
   )
