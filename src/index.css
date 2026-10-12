@@ -5,6 +5,9 @@
   --color-mekra-orange: #FF6B00;
   --color-mekra-white: #FFFFFF;
   --color-mekra-dark: #111111;
+  --color-mekra-yellow: #FFD23F;
+  --color-mekra-paper: #FDF6E3;
+  --color-mekra-blue: #2D5BFF;
 }
 
 /* Flotación sutil de la cámara del hero (cuando no hay scroll) */
@@ -18,6 +21,27 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-mekra-float { animation: none; }
+}
+
+/* Neo-brutalismo (v4) — sombras sólidas desplazadas */
+.shadow-brutal      { box-shadow: 6px 6px 0 0 #1A1A1A; }
+.shadow-brutal-lg   { box-shadow: 10px 10px 0 0 #1A1A1A; }
+.shadow-brutal-sm   { box-shadow: 4px 4px 0 0 #1A1A1A; }
+.hover-brutal       { transition: transform .15s ease, box-shadow .15s ease; }
+.hover-brutal:hover { transform: translate(-3px, -3px); box-shadow: 9px 9px 0 0 #1A1A1A; }
+.hover-brutal:active{ transform: translate(2px, 2px); box-shadow: 3px 3px 0 0 #1A1A1A; }
+
+/* Marquee horizontal (v4) */
+@keyframes mekra-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-mekra-marquee {
+  animation: mekra-marquee 22s linear infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-mekra-marquee { animation: none; }
 }
 
 /* Lenis — smooth scroll (evita conflicto con scroll-behavior nativo) */

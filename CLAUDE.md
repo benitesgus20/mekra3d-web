@@ -141,6 +141,11 @@ const { items, addItem, removeItem, updateQuantity, clearCart, count, total, isO
 | Vite | 8 |
 | Tailwind CSS | 4 (plugin `@tailwindcss/vite`) |
 | React Router | 7 |
+| Motion | 12.x — `import { motion } from 'motion/react'` |
+| Lucide React | 1.x — íconos SVG como componentes |
+| Vercel Analytics | 2.x — agregar `<Analytics />` en main.jsx |
+| GSAP | 3.15 — animaciones complejas (scroll, timelines) |
+| Lenis | 1.0 — smooth scroll |
 
 Tailwind v4: no hay `tailwind.config.js`. La configuración de colores va en `src/index.css` dentro de `@theme {}`.
 
