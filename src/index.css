@@ -5,6 +5,21 @@
   --color-mekra-orange: #FF6B00;
   --color-mekra-white: #FFFFFF;
   --color-mekra-dark: #111111;
+  --color-mekra-cream: #F5F1EA;
+  --color-mekra-sand: #E8E0D4;
+}
+
+/* Marquee horizontal infinito (v3 editorial) */
+@keyframes mekra-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-mekra-marquee {
+  animation: mekra-marquee 30s linear infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-mekra-marquee { animation: none; }
 }
 
 /* Flotación sutil de la cámara del hero (cuando no hay scroll) */
